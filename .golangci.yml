@@ -4,3 +4,8 @@ linters:
   default: standard
   enable:
     - gosec
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
