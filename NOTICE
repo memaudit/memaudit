@@ -3,3 +3,9 @@ memaudit includes software from the following third parties:
 gopkg.in/yaml.v3
 Copyright 2011-2016 Canonical Ltd.
 Licensed under the Apache License, Version 2.0.
+
+github.com/klauspost/compress (zstd package)
+Copyright (c) 2012 The Go Authors. All rights reserved.
+Copyright (c) 2019 Klaus Post. All rights reserved.
+Licensed under a BSD-3-Clause-style license; see
+https://github.com/klauspost/compress/blob/master/LICENSE.
