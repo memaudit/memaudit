@@ -37,9 +37,9 @@ tasks:
       - reuse lint
 
   fixtures:
-    desc: Capture golden test fixtures
+    desc: Capture a golden test fixture tree from this box (run on real target distros)
     cmds:
-      - echo "no collectors yet — nothing to capture"
+      - scripts/capture-fixtures.sh {{.CLI_ARGS}}
 
   snapshot:
     desc: Build a local goreleaser snapshot
