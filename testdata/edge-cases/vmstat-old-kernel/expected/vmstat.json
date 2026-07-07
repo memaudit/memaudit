@@ -1,0 +1,14 @@
+{
+  "pgscan_kswapd": 42,
+  "pgscan_direct": 7,
+  "pgsteal_kswapd": 30,
+  "pgsteal_direct": 3,
+  "pswpin": 5,
+  "pswpout": 9,
+  "workingset_refault_anon": 0,
+  "workingset_refault_file": 0,
+  "workingset_activate_anon": 0,
+  "workingset_activate_file": 0,
+  "oom_kill": 1,
+  "pgmajfault": 55
+}
