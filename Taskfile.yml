@@ -1,0 +1,52 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build all packages
+    cmds:
+      - go build ./...
+
+  test:
+    desc: Run tests with the race detector
+    cmds:
+      - go test ./... -race
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  fmt:
+    desc: List files that need gofmt
+    cmds:
+      - gofmt -l -s .
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  tidy:
+    desc: Tidy go.mod/go.sum
+    cmds:
+      - go mod tidy
+
+  reuse-lint:
+    desc: Check REUSE/SPDX license compliance
+    cmds:
+      - reuse lint
+
+  fixtures:
+    desc: Capture golden test fixtures
+    cmds:
+      - echo "no collectors yet — nothing to capture"
+
+  snapshot:
+    desc: Build a local goreleaser snapshot
+    cmds:
+      - goreleaser build --snapshot --clean
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf dist/

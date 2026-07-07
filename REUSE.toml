@@ -1,0 +1,6 @@
+version = 1
+
+[[annotations]]
+path = ["LICENSE", "LICENSES/**", "NOTICE", "**/README.md", "CONTRIBUTING.md", "SECURITY.md", "DCO", ".gitignore", "go.mod", "go.sum", "Taskfile.yml", ".golangci.yml", ".goreleaser.yaml", ".github/**"]
+SPDX-FileCopyrightText = "2026 the memaudit authors"
+SPDX-License-Identifier = "Apache-2.0"
