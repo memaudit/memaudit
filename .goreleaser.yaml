@@ -1,0 +1,72 @@
+version: 2
+
+project_name: memaudit
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: memauditd
+    main: ./cmd/memauditd
+    binary: memauditd
+    env: [CGO_ENABLED=0]
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+  - id: memaudit-synth
+    main: ./cmd/memaudit-synth
+    binary: memaudit-synth
+    env: [CGO_ENABLED=0]
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+
+checksum:
+  name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
+      - ${artifact}
+      - --yes
+    artifacts: checksum
+
+changelog:
+  sort: asc
+  use: git
+  filters:
+    exclude:
+      - '^.*?docs(\(.+\))??!?:.+$'
+      - '^.*?test(\(.+\))??!?:.+$'
+      - '^.*?chore(\(.+\))??!?:.+$'
+      - '^.*?ci(\(.+\))??!?:.+$'
+      - '^.*?build(\(.+\))??!?:.+$'
+      - '^.*?style(\(.+\))??!?:.+$'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: "Bug fixes"
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: "Performance improvements"
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
