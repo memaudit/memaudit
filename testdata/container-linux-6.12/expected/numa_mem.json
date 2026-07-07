@@ -1,0 +1,22 @@
+[
+  {
+    "node": 0,
+    "mem_total": 67479552000,
+    "mem_free": 1263616000,
+    "file_pages": 35328000000,
+    "anon_pages": 15872000000,
+    "numa_hit": 987654321,
+    "numa_miss": 4321,
+    "numa_foreign": 1234
+  },
+  {
+    "node": 1,
+    "mem_total": 67479552000,
+    "mem_free": 30720000000,
+    "file_pages": 18329600000,
+    "anon_pages": 10342400000,
+    "numa_hit": 456789012,
+    "numa_miss": 210,
+    "numa_foreign": 987
+  }
+]
