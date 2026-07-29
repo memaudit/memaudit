@@ -6,11 +6,16 @@ package spool
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -406,5 +411,243 @@ func TestOpenApproximatesActiveStartFromExistingFileMTime(t *testing.T) {
 	}
 	if got.Type != "vmstat" {
 		t.Errorf("active.jsonl Type = %q, want %q (leftover content should have rotated out first)", got.Type, "vmstat")
+	}
+}
+
+// listTempFiles returns the in-progress segment files (the ones a
+// rotation writes before publishing them under their final name).
+func listTempFiles(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	var tmps []string
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".tmp") {
+			tmps = append(tmps, e.Name())
+		}
+	}
+	return tmps
+}
+
+// TestRotatePublishesSegmentOnlyWhenComplete pins the invariant a
+// concurrent reader depends on: a segment appears under its final
+// ".jsonl.zst" name only once it is fully written and synced. A shipper
+// runs alongside the writer, lists segments, POSTs them and then deletes
+// them — so a file carrying its final name while still being written
+// would be shipped half-empty and unlinked out from under the rotation
+// that is still filling it.
+//
+// The assertions run at the one instant that matters: after the segment
+// bytes are on disk, before the rename that publishes them. Writing
+// straight to the final name (as this code used to) fails every one of
+// them.
+func TestRotatePublishesSegmentOnlyWhenComplete(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir, Options{RotateBytes: 1, NewULID: func() string { return "SEG001" }})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	segPath := filepath.Join(dir, "SEG001.jsonl.zst")
+
+	var hookCalls int
+	s.beforePublish = func(tmpPath, gotSegPath string) {
+		hookCalls++
+
+		if gotSegPath != segPath {
+			t.Errorf("segment path = %q, want %q", gotSegPath, segPath)
+		}
+		info, err := os.Stat(tmpPath)
+		if err != nil {
+			t.Errorf("stat in-progress segment %q: %v", tmpPath, err)
+		} else if info.Size() == 0 {
+			t.Errorf("in-progress segment %q is empty at publish time", tmpPath)
+		}
+
+		if _, err := os.Stat(segPath); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("final segment name %q already exists before the publishing rename (stat err = %v)", segPath, err)
+		}
+		segs, err := s.Segments()
+		if err != nil {
+			t.Errorf("Segments during rotation: %v", err)
+		}
+		if len(segs) != 0 {
+			t.Errorf("Segments exposed %v mid-rotation; a concurrent shipper could ship and delete a segment still being written", segs)
+		}
+	}
+
+	if err := s.Write(testEnvelope("host_mem")); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if hookCalls != 1 {
+		t.Fatalf("expected exactly 1 rotation, got %d", hookCalls)
+	}
+
+	segs, err := s.Segments()
+	if err != nil {
+		t.Fatalf("Segments: %v", err)
+	}
+	if len(segs) != 1 || segs[0] != segPath {
+		t.Fatalf("after rotation, Segments = %v, want [%s]", segs, segPath)
+	}
+	if lines := decompressSegment(t, segPath); len(lines) != 1 {
+		t.Errorf("expected 1 line in the published segment, got %d", len(lines))
+	}
+	if tmps := listTempFiles(t, dir); len(tmps) != 0 {
+		t.Errorf("rotation left in-progress files behind: %v", tmps)
+	}
+}
+
+// TestOpenClearsAbandonedInProgressSegment covers the crash case: a
+// rotation that died between creating its temporary segment and
+// publishing it leaves a file Segments() can't see and the cap can't
+// count, so the next Open has to clear it out.
+func TestOpenClearsAbandonedInProgressSegment(t *testing.T) {
+	dir := t.TempDir()
+	orphan := filepath.Join(dir, "SEG001.jsonl.zst.tmp")
+	if err := os.WriteFile(orphan, []byte("half a zstd frame"), 0o640); err != nil {
+		t.Fatalf("seed orphan: %v", err)
+	}
+
+	s, err := Open(dir, Options{})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if tmps := listTempFiles(t, dir); len(tmps) != 0 {
+		t.Errorf("Open left abandoned in-progress segments behind: %v", tmps)
+	}
+}
+
+// checkSegmentComplete reports whether path holds a whole, readable
+// segment: a complete zstd frame decoding to at least one newline-
+// terminated JSON line. A file that a rotation is still streaming into
+// fails here — as an empty read, a truncated zstd frame, or a partial
+// trailing line.
+func checkSegmentComplete(path string) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read: %w", err)
+	}
+	dec, err := zstd.NewReader(bytes.NewReader(raw))
+	if err != nil {
+		return fmt.Errorf("zstd.NewReader: %w", err)
+	}
+	defer dec.Close()
+
+	body, err := io.ReadAll(dec)
+	if err != nil {
+		return fmt.Errorf("decompress (%d compressed bytes): %w", len(raw), err)
+	}
+	if len(body) == 0 {
+		return fmt.Errorf("segment decoded to 0 bytes (%d compressed bytes)", len(raw))
+	}
+	if body[len(body)-1] != '\n' {
+		return errors.New("segment does not end on a line boundary")
+	}
+	for i, line := range bytes.Split(bytes.TrimSuffix(body, []byte{'\n'}), []byte{'\n'}) {
+		var e model.Envelope
+		if err := json.Unmarshal(line, &e); err != nil {
+			return fmt.Errorf("line %d is not a valid envelope: %w", i, err)
+		}
+	}
+	return nil
+}
+
+// TestSegmentsNeverExposesPartialSegment reproduces what the agent does
+// in push mode — collectors rotating segments while the shipper
+// concurrently lists and reads them — and asserts that every path
+// Segments hands out is already complete. Against a rotation that streams
+// into the final name, the reader below catches empty or truncated
+// segments: it validates each path the first time it sees it, and that
+// first sighting lands inside the compress-and-sync window.
+func TestSegmentsNeverExposesPartialSegment(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir, Options{RotateBytes: 512 * 1024})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	// Bulky, poorly-compressible payloads keep each rotation busy long
+	// enough for a concurrent reader to sample the window.
+	rng := rand.New(rand.NewPCG(1, 2))
+	blob := make([]byte, 16*1024)
+	for i := range blob {
+		blob[i] = byte(rng.UintN(256))
+	}
+	env := testEnvelope("host_mem")
+	env.Payload = json.RawMessage(`{"blob":"` + hex.EncodeToString(blob) + `"}`)
+
+	stop := make(chan struct{})
+	errCh := make(chan error, 64)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		seen := map[string]bool{}
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			segs, err := s.Segments()
+			if err != nil {
+				errCh <- fmt.Errorf("Segments: %w", err)
+				return
+			}
+			for _, p := range segs {
+				if seen[p] {
+					continue
+				}
+				seen[p] = true
+				if strings.HasSuffix(p, ".tmp") {
+					errCh <- fmt.Errorf("Segments returned an in-progress file: %s", p)
+					continue
+				}
+				if err := checkSegmentComplete(p); err != nil {
+					errCh <- fmt.Errorf("segment %s was listed before it was complete: %w", filepath.Base(p), err)
+				}
+			}
+		}
+	}()
+
+	const rotations = 6
+	for i := 0; i < rotations*(512*1024/len(env.Payload)+1); i++ {
+		if err := s.Write(env); err != nil {
+			close(stop)
+			wg.Wait()
+			t.Fatalf("Write %d: %v", i, err)
+		}
+	}
+
+	close(stop)
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Error(err)
+	}
+
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if tmps := listTempFiles(t, dir); len(tmps) != 0 {
+		t.Errorf("in-progress files left behind: %v", tmps)
+	}
+	segs, err := s.Segments()
+	if err != nil {
+		t.Fatalf("Segments: %v", err)
+	}
+	if len(segs) < rotations {
+		t.Fatalf("expected at least %d rotations to have happened, got %d segments", rotations, len(segs))
+	}
+	for _, p := range segs {
+		if err := checkSegmentComplete(p); err != nil {
+			t.Errorf("final segment %s: %v", filepath.Base(p), err)
+		}
 	}
 }

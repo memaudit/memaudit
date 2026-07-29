@@ -59,3 +59,17 @@ jobs:
           distribution: goreleaser
           version: latest
           args: build --snapshot --clean
+
+  systemd-units:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: install -Dm0755 /bin/true /usr/local/bin/memauditd
+      - run: systemd-analyze verify deploy/memauditd.service deploy/memauditd-zerotouch.service
+
+  install-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: shellcheck deploy/install.sh deploy/install_test.sh scripts/capture-fixtures.sh
+      - run: bash deploy/install_test.sh
