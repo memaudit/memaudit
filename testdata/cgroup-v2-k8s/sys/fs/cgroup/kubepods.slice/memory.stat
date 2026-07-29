@@ -1,0 +1,17 @@
+anon 1800000000
+file 300000000
+kernel 47483648
+slab_reclaimable 10000000
+slab_unreclaimable 5000000
+file_mapped 20000000
+file_dirty 1000000
+inactive_anon 100000000
+active_anon 1700000000
+inactive_file 250000000
+active_file 50000000
+workingset_refault_anon 0
+workingset_refault_file 0
+workingset_activate_anon 0
+workingset_activate_file 0
+pgscan 0
+pgsteal 0

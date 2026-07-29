@@ -17,7 +17,7 @@ name="${1:-$(hostname -s)}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dest="$root/testdata/$name"
 
-mkdir -p "$dest/proc/pressure" "$dest/sys/devices/system/node" "$dest/expected"
+mkdir -p "$dest/proc/pressure" "$dest/sys/devices/system/node" "$dest/sys/kernel/mm/hugepages" "$dest/expected"
 
 cp /proc/meminfo "$dest/proc/meminfo"
 cp /proc/vmstat "$dest/proc/vmstat"
@@ -39,9 +39,36 @@ if [ -d "$node_root" ]; then
 		[ -r "$node/meminfo" ] && cp "$node/meminfo" "$dest/sys/devices/system/node/$n/meminfo"
 		[ -r "$node/numastat" ] && cp "$node/numastat" "$dest/sys/devices/system/node/$n/numastat"
 		echo "captured sys/devices/system/node/$n"
+
+		if [ -d "$node/hugepages" ]; then
+			for size in "$node/hugepages"/hugepages-*kB; do
+				[ -d "$size" ] || continue
+				s="$(basename "$size")"
+				mkdir -p "$dest/sys/devices/system/node/$n/hugepages/$s"
+				for f in nr_hugepages free_hugepages surplus_hugepages resv_hugepages; do
+					[ -r "$size/$f" ] && cp "$size/$f" "$dest/sys/devices/system/node/$n/hugepages/$s/$f"
+				done
+			done
+			echo "captured sys/devices/system/node/$n/hugepages"
+		fi
 	done
 else
 	echo "$node_root not available (single-node host?) — skipped"
+fi
+
+hugepages_root=/sys/kernel/mm/hugepages
+if [ -d "$hugepages_root" ]; then
+	for size in "$hugepages_root"/hugepages-*kB; do
+		[ -d "$size" ] || continue
+		s="$(basename "$size")"
+		mkdir -p "$dest/sys/kernel/mm/hugepages/$s"
+		for f in nr_hugepages free_hugepages surplus_hugepages resv_hugepages; do
+			[ -r "$size/$f" ] && cp "$size/$f" "$dest/sys/kernel/mm/hugepages/$s/$f"
+		done
+	done
+	echo "captured sys/kernel/mm/hugepages"
+else
+	echo "$hugepages_root not available (CONFIG_HUGETLB off?) — skipped"
 fi
 
 cat <<EOF
