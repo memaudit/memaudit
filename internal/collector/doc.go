@@ -3,6 +3,5 @@
 
 // Package collector holds one file per record type: host memory, vmstat,
 // PSI, NUMA, cgroups, hugepages, DAMON histograms, GPU memory, and vLLM
-// metrics. Cgroups, hugepages, DAMON, GPU, and vLLM are not implemented
-// yet.
+// metrics. DAMON, GPU, and vLLM are not implemented yet.
 package collector

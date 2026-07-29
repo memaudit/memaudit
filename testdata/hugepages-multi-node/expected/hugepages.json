@@ -1,0 +1,26 @@
+[
+  {
+    "size_kb": 2048,
+    "node": 0,
+    "total": 50,
+    "free": 20,
+    "rsvd": 0,
+    "surp": 0
+  },
+  {
+    "size_kb": 2048,
+    "node": 1,
+    "total": 50,
+    "free": 20,
+    "rsvd": 10,
+    "surp": 0
+  },
+  {
+    "size_kb": 1048576,
+    "node": -1,
+    "total": 4,
+    "free": 2,
+    "rsvd": 1,
+    "surp": 0
+  }
+]

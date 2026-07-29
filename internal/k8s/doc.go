@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package k8s enriches cgroup samples with pod, namespace, and label
-// metadata via the kubelet /pods endpoint. Not implemented yet.
+// metadata via the kubelet /pods endpoint.
 package k8s

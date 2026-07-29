@@ -100,3 +100,68 @@ type NumaMem struct {
 	NumaMiss    uint64 `json:"numa_miss"`
 	NumaForeign uint64 `json:"numa_foreign"`
 }
+
+// HugepagesNoNUMA is the Node value used when a host has no per-node
+// hugepages sysfs (single-node hosts, some containers): the record
+// carries host-level totals instead of a per-node breakdown.
+const HugepagesNoNUMA = -1
+
+// Hugepages is one hugepages payload per (page size, NUMA node), sourced
+// from /sys/kernel/mm/hugepages and, when present,
+// /sys/devices/system/node/nodeN/hugepages. Total/Free/Rsvd/Surp are page
+// counts, not bytes.
+type Hugepages struct {
+	SizeKB uint64 `json:"size_kb"`
+	Node   int    `json:"node"`
+	Total  uint64 `json:"total"`
+	Free   uint64 `json:"free"`
+	Rsvd   uint64 `json:"rsvd"`
+	Surp   uint64 `json:"surp"`
+}
+
+// CgroupMem is one cgroup_mem payload per selected cgroup v2 directory,
+// sourced from memory.current/max/min/low/high/peak/swap.current,
+// memory.pressure, and memory.stat under /sys/fs/cgroup. Nullable fields
+// are nil when the kernel omits the file (e.g. memory.peak on <5.19) or
+// the file reads "max" (no limit set).
+type CgroupMem struct {
+	Cgroup string `json:"cgroup"`
+
+	Current     uint64  `json:"current"`
+	Max         *uint64 `json:"max,omitempty"`
+	Min         *uint64 `json:"min,omitempty"`
+	Low         *uint64 `json:"low,omitempty"`
+	High        *uint64 `json:"high,omitempty"`
+	Peak        *uint64 `json:"peak,omitempty"`
+	SwapCurrent uint64  `json:"swap_current"`
+
+	// PSI is nil when the cgroup has no memory.pressure file (PSI
+	// disabled, or a kernel too old to expose it per-cgroup).
+	PSI *PSI `json:"psi,omitempty"`
+
+	Anon                   uint64 `json:"anon"`
+	File                   uint64 `json:"file"`
+	Kernel                 uint64 `json:"kernel"`
+	SlabReclaimable        uint64 `json:"slab_reclaimable"`
+	SlabUnreclaimable      uint64 `json:"slab_unreclaimable"`
+	FileMapped             uint64 `json:"file_mapped"`
+	FileDirty              uint64 `json:"file_dirty"`
+	InactiveAnon           uint64 `json:"inactive_anon"`
+	ActiveAnon             uint64 `json:"active_anon"`
+	InactiveFile           uint64 `json:"inactive_file"`
+	ActiveFile             uint64 `json:"active_file"`
+	WorkingsetRefaultAnon  uint64 `json:"workingset_refault_anon"`
+	WorkingsetRefaultFile  uint64 `json:"workingset_refault_file"`
+	WorkingsetActivateAnon uint64 `json:"workingset_activate_anon"`
+	WorkingsetActivateFile uint64 `json:"workingset_activate_file"`
+	Pgscan                 uint64 `json:"pgscan"`
+	Pgsteal                uint64 `json:"pgsteal"`
+
+	// K8s enrichment fields, populated only when k8s.enrich is on and
+	// the cgroup's pod UID resolves via the kubelet. Zero-valued
+	// otherwise.
+	K8sNamespace   string            `json:"k8s_ns,omitempty"`
+	K8sPod         string            `json:"k8s_pod,omitempty"`
+	K8sContainerID string            `json:"k8s_container_id,omitempty"`
+	K8sLabels      map[string]string `json:"k8s_labels,omitempty"`
+}
