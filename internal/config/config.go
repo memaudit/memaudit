@@ -54,10 +54,17 @@ type VLLMConfig struct {
 }
 
 type K8sConfig struct {
-	Enrich    bool     `yaml:"enrich"`
-	Kubelet   string   `yaml:"kubelet"`
-	TokenPath string   `yaml:"token_path"`
-	LabelKeys []string `yaml:"label_keys"`
+	Enrich    bool   `yaml:"enrich"`
+	Kubelet   string `yaml:"kubelet"`
+	TokenPath string `yaml:"token_path"`
+	// CAPath verifies the kubelet's TLS certificate. Ignored if
+	// InsecureSkipVerify is set.
+	CAPath string `yaml:"ca_path"`
+	// InsecureSkipVerify skips kubelet TLS verification entirely. Only
+	// meant for local/dev clusters using self-signed certs without a
+	// distributable CA.
+	InsecureSkipVerify bool     `yaml:"insecure_skip_verify"`
+	LabelKeys          []string `yaml:"label_keys"`
 }
 
 type SpoolConfig struct {

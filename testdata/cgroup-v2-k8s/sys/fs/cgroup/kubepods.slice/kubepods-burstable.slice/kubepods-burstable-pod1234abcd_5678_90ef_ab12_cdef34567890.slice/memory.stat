@@ -1,0 +1,6 @@
+anon 500000000
+file 30000000
+workingset_refault_anon 120
+workingset_refault_file 40
+pgscan 900
+pgsteal 800
