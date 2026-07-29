@@ -41,6 +41,16 @@ Golden fixtures used by the collector parser tests in `internal/collector`:
   all degrade to null/zero rather than erroring). `scripts/capture-fixtures.sh`
   intentionally doesn't attempt to capture real cgroup trees for the
   same reason.
+- `selftest/` — hand-authored `proc` trees for `internal/selftest`'s own
+  tests, not real captures: selftest only ever `os.Stat`s or
+  reads-and-trims these files (kernel version string, presence of
+  `pressure/memory`), it never parses them as real collector payloads,
+  so placeholder content is correct here, unlike the collector golden
+  fixtures elsewhere in this directory. `full-caps/` has everything
+  present; `psi-absent/` omits `pressure/memory`. The cgroup-present and
+  cgroup-v1 cases reuse the existing `cgroup-v2-k8s/sys` and
+  `edge-cases/cgroup-v1-host/sys` fixtures for their `sysRoot` rather
+  than duplicating them.
 
 Also worth noting from the real capture above: `DirectMap4k/2M/1G` are
 absent from that container's `/proc/meminfo` entirely — those fields are
