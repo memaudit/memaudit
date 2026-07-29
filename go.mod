@@ -1,6 +1,6 @@
 module github.com/memaudit/memaudit
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/klauspost/compress v1.19.0
