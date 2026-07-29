@@ -62,6 +62,12 @@ type Spool struct {
 	active      *os.File
 	activeSize  int64
 	activeStart time.Time
+
+	// beforePublish, when non-nil, is called during rotate() with the
+	// temporary and final segment paths, after the segment is fully
+	// written and synced but before the rename that publishes it.
+	// Test-only: nothing outside this package's tests ever sets it.
+	beforePublish func(tmpPath, segPath string)
 }
 
 // Open opens (or creates) the spool directory at dir.
@@ -83,6 +89,18 @@ func Open(dir string, opts Options) (*Spool, error) {
 	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
+	}
+	// Drop any half-written segment left behind by a rotation the previous
+	// run died in the middle of. Segments() can't see it, so it would sit
+	// there uncounted against the cap forever.
+	tmps, err := filepath.Glob(filepath.Join(dir, "*.jsonl.zst.tmp"))
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range tmps {
+		if err := os.Remove(p); err != nil {
+			return nil, err
+		}
 	}
 	f, err := os.OpenFile(filepath.Join(dir, "active.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o640) //nolint:gosec // G304: dir is operator-configured (spool.dir), not untrusted input
 	if err != nil {
@@ -156,8 +174,15 @@ func (s *Spool) rotate() error {
 		return err
 	}
 
+	// Compress into a temporary name and publish it with an atomic
+	// rename. Segments() lists by the literal ".jsonl.zst" suffix, and a
+	// reader (the shipper) runs concurrently with this rotation: writing
+	// straight to segPath would expose an empty or half-written file under
+	// its final name, which the shipper would happily POST and then
+	// delete, destroying the segment this call is still writing.
 	segPath := filepath.Join(s.dir, fmt.Sprintf("%s.jsonl.zst", s.newULID()))
-	segFile, err := os.OpenFile(segPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o640) //nolint:gosec // G304: segPath is built from the spool's own dir, not external input
+	tmpPath := segPath + ".tmp"
+	segFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o640) //nolint:gosec // G304: tmpPath is built from the spool's own dir, not external input
 	if err != nil {
 		return err
 	}
@@ -175,6 +200,12 @@ func (s *Spool) rotate() error {
 		return err
 	}
 	if err := segFile.Sync(); err != nil {
+		return err
+	}
+	if s.beforePublish != nil {
+		s.beforePublish(tmpPath, segPath)
+	}
+	if err := os.Rename(tmpPath, segPath); err != nil {
 		return err
 	}
 

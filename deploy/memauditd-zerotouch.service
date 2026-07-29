@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 the memaudit authors
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=memaudit host memory agent (zero-touch mode — kernel tunables read-only)
+Documentation=https://github.com/memaudit/memaudit
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/memauditd run --config /etc/memaudit/config.yaml
+Restart=on-failure
+RestartSec=10s
+ProtectSystem=strict
+ReadWritePaths=/var/lib/memaudit
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=256M
+CPUQuota=10%
+ProtectKernelTunables=true
+
+[Install]
+WantedBy=multi-user.target

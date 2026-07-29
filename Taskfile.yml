@@ -36,6 +36,11 @@ tasks:
     cmds:
       - reuse lint
 
+  install-test:
+    desc: Exercise install.sh end-to-end against faked curl/systemctl (Linux only)
+    cmds:
+      - bash deploy/install_test.sh
+
   fixtures:
     desc: Capture a golden test fixture tree from this box (run on real target distros)
     cmds:

@@ -2,6 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package selftest prints the host capability matrix consumed by both
-// `memauditd selftest` and the pre-sales compatibility check. Not
-// implemented yet.
+// `memauditd selftest` and the pre-sales compatibility check.
 package selftest
