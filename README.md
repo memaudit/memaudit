@@ -9,8 +9,13 @@ This repository contains the agent (`memauditd`), the DAMON client
 and deployment artifacts. The agent works standalone in bundle mode (local
 JSONL, no server required).
 
-**Status: early scaffold.** Collectors, spool, DAMON client, and deployment
-units are not implemented yet.
+**Status: core agent implemented, DAMON and GPU/vLLM collectors pending.**
+`memauditd` collects host memory (meminfo, vmstat, PSI, NUMA, cgroup v2,
+hugepages, optional Kubernetes enrichment), spools locally with zstd
+rotation, and ships in bundle mode — systemd units and an install script are
+included. `pkg/damon` (cold-page histograms) and the NVML/vLLM collectors
+are not implemented yet. No versioned release has been cut yet, so
+`install.sh` has nothing to fetch — build from source in the meantime.
 
 ## License
 
