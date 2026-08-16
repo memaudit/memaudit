@@ -8,9 +8,17 @@ Golden fixtures used by the collector parser tests in `internal/collector`:
   (`sys/devices/system/node/node{0,1}/*`) are hand-authored**, not a real
   capture — that VM is single-node and doesn't expose
   `/sys/devices/system/node` to containers at all. The format is stable
-  and well-documented, but this should be replaced with a real capture
-  from actual multi-socket hardware before relying on it for anything
-  beyond exercising the parser.
+  and well-documented and this fixture is still exercised
+  (`TestNumaCollectGolden`), but see `scw-em-b111x/` below for the real
+  multi-socket capture this hand-authored data was standing in for.
+- `scw-em-b111x/` — real capture from a genuine 2-socket host (rented
+  hourly, torn down after capture), 2x Intel Xeon E5-2620, kernel
+  6.8.0-88-generic x86_64. `sys/devices/system/node/node{0,1}/*` is what
+  `TestNumaCollectGoldenRealDualSocket` exercises. It also captured
+  real per-node `hugepages/` under both nodes — not yet wired into a
+  test (`hugepages-multi-node/` below is still the hand-authored one in
+  use); that data is sitting here unused if someone wants to retire that
+  fixture too.
 - `edge-cases/` — deliberately synthetic, not meant to resemble a real
   box: `vmstat-old-kernel` drops the `workingset_refault_anon/file` split
   (added in kernel 5.8) to prove the vmstat parser tolerates missing keys;
