@@ -73,3 +73,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: shellcheck deploy/install.sh deploy/install_test.sh scripts/capture-fixtures.sh
       - run: bash deploy/install_test.sh
+
+  check-footprint-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: shellcheck deploy/check-footprint.sh deploy/check-footprint-test.sh
+      - run: bash deploy/check-footprint-test.sh

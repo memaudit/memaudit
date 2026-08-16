@@ -51,6 +51,11 @@ tasks:
     cmds:
       - bash deploy/install_test.sh
 
+  check-footprint-test:
+    desc: Exercise check-footprint.sh end-to-end against faked systemctl/journalctl/du (Linux only)
+    cmds:
+      - bash deploy/check-footprint-test.sh
+
   fixtures:
     desc: Capture a golden test fixture tree from this box (run on real target distros)
     cmds:
