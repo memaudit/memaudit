@@ -14,11 +14,14 @@ Golden fixtures used by the collector parser tests in `internal/collector`:
 - `scw-em-b111x/` — real capture from a genuine 2-socket host (rented
   hourly, torn down after capture), 2x Intel Xeon E5-2620, kernel
   6.8.0-88-generic x86_64. `sys/devices/system/node/node{0,1}/*` is what
-  `TestNumaCollectGoldenRealDualSocket` exercises. It also captured
-  real per-node `hugepages/` under both nodes — not yet wired into a
-  test (`hugepages-multi-node/` below is still the hand-authored one in
-  use); that data is sitting here unused if someone wants to retire that
-  fixture too.
+  `TestNumaCollectGoldenRealDualSocket` exercises. Also exercised by
+  `TestHugepagesCollectGoldenRealDualSocket`: real per-node `hugepages/`
+  under both nodes, though every count is zero (no hugepages configured
+  on that box) — real evidence of the per-node sysfs *shape* (two page
+  sizes, both nodes, `resv_hugepages` only at the global level, never
+  per-node), not of varied values. See `hugepages-multi-node/` below for
+  why that fixture stays in place alongside this one rather than being
+  replaced by it.
 - `edge-cases/` — deliberately synthetic, not meant to resemble a real
   box: `vmstat-old-kernel` drops the `workingset_refault_anon/file` split
   (added in kernel 5.8) to prove the vmstat parser tolerates missing keys;
@@ -32,13 +35,14 @@ Golden fixtures used by the collector parser tests in `internal/collector`:
   and, deliberately, no `cgroup.controllers` file at the root — that
   absence is what the cgroup collector actually keys off to detect v1
   and skip walking rather than misreading a v1 tree as v2.
-- `hugepages-multi-node/` — hand-authored (not a real capture; see
-  "Get more real fixtures" below), since neither of this repo's real
-  capture sources exposes per-node hugepages sysfs. Exercises two page
-  sizes: one broken out per NUMA node (and missing `resv_hugepages` on
-  one node, to prove missing per-node files read as zero), one with no
-  per-node breakout at all (falls back to the global host-level record,
-  `node: -1`).
+- `hugepages-multi-node/` — hand-authored, not a real capture. Exercises
+  two page sizes: one broken out per NUMA node (and missing
+  `resv_hugepages` on one node, to prove missing per-node files read as
+  zero), one with no per-node breakout at all (falls back to the global
+  host-level record, `node: -1`). `scw-em-b111x/` above now covers the
+  per-node case with real data, but never hits the no-per-node-breakout
+  fallback (that box always exposed per-node dirs), so this fixture
+  stays for that path.
 - `cgroup-v2-k8s/` — hand-authored synthetic `/sys/fs/cgroup` tree, not a
   real capture: real cgroup trees are host-specific and noisy, and this
   needs to hit a lot of specific shapes deliberately (a `system.slice`
