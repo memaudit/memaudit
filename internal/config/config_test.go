@@ -4,6 +4,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -31,5 +33,28 @@ func TestDefaultVLLMEndpointsEmpty(t *testing.T) {
 	// every other opt-in collector.
 	if got := Default().Collectors.VLLM.Endpoints; len(got) != 0 {
 		t.Fatalf("got %v, want empty", got)
+	}
+}
+
+func TestDefaultDebugPprofAddrEmpty(t *testing.T) {
+	// Off by default: the debug endpoint exposes runtime internals and
+	// must be an operator's deliberate choice, never active out of the
+	// box.
+	if got := Default().Debug.PprofAddr; got != "" {
+		t.Fatalf("got %q, want empty", got)
+	}
+}
+
+func TestLoadParsesDebugPprofAddr(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("debug:\n  pprof_addr: 127.0.0.1:6060\n"), 0o600); err != nil {
+		t.Fatalf("write fixture config: %v", err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Debug.PprofAddr; got != "127.0.0.1:6060" {
+		t.Fatalf("got %q, want %q", got, "127.0.0.1:6060")
 	}
 }
