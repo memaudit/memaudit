@@ -101,6 +101,91 @@ func TestBuildSourcesDamonAbsentSkipsGracefully(t *testing.T) {
 	assertSameSet(t, got, want)
 }
 
+func TestBuildSourcesGPUDisabledByDefault(t *testing.T) {
+	cfg := config.CollectorsConfig{} // NVML.Enabled defaults to "" (zero value), same as explicit "false"
+	srcs := buildSources(cfg, "../../testdata/container-linux-6.12/proc", "../../testdata/container-linux-6.12/sys", "acme", "host-a", nil, fixedNow)
+
+	for _, src := range srcs {
+		if src.typ == "gpu_mem" {
+			t.Fatal("gpu_mem source registered despite NVML.Enabled being unset")
+		}
+	}
+}
+
+func TestBuildSourcesGPUExplicitlyDisabled(t *testing.T) {
+	cfg := config.CollectorsConfig{NVML: config.NVMLConfig{Enabled: "false"}}
+	srcs := buildSources(cfg, "../../testdata/container-linux-6.12/proc", "../../testdata/container-linux-6.12/sys", "acme", "host-a", nil, fixedNow)
+
+	for _, src := range srcs {
+		if src.typ == "gpu_mem" {
+			t.Fatal("gpu_mem source registered despite NVML.Enabled=false")
+		}
+	}
+}
+
+func TestBuildSourcesGPUAutoRegistersEvenWithoutNvidiaSMI(t *testing.T) {
+	// Unlike DAMON (a stateful kernel session, worth deciding once at
+	// startup), nvidia-smi is a stateless per-tick exec: the source
+	// registers unconditionally when enabled, and self-reports absence
+	// on every tick if the binary isn't there — same convention as PSI.
+	cfg := config.CollectorsConfig{NVML: config.NVMLConfig{Enabled: "auto"}}
+	srcs := buildSources(cfg, "../../testdata/container-linux-6.12/proc", "../../testdata/container-linux-6.12/sys", "acme", "host-a", nil, fixedNow)
+
+	found := false
+	for _, src := range srcs {
+		if src.typ != "gpu_mem" {
+			continue
+		}
+		found = true
+		envs, err := src.collect()
+		if err != nil {
+			t.Fatalf("gpu_mem collect: %v", err)
+		}
+		if len(envs) != 0 {
+			t.Fatalf("got %d envelopes, want 0 (no real nvidia-smi in this test environment)", len(envs))
+		}
+	}
+	if !found {
+		t.Fatal("gpu_mem source not registered despite NVML.Enabled=auto")
+	}
+}
+
+func TestBuildSourcesVLLMDisabledByDefault(t *testing.T) {
+	cfg := config.CollectorsConfig{} // VLLM.Endpoints defaults to nil (zero value)
+	srcs := buildSources(cfg, "../../testdata/container-linux-6.12/proc", "../../testdata/container-linux-6.12/sys", "acme", "host-a", nil, fixedNow)
+
+	for _, src := range srcs {
+		if src.typ == "vllm" {
+			t.Fatal("vllm source registered despite no configured endpoints")
+		}
+	}
+}
+
+func TestBuildSourcesVLLMRegisteredWithEndpoints(t *testing.T) {
+	cfg := config.CollectorsConfig{
+		VLLM: config.VLLMConfig{Endpoints: []string{"http://127.0.0.1:1"}}, // unreachable: proves registration, not connectivity
+	}
+	srcs := buildSources(cfg, "../../testdata/container-linux-6.12/proc", "../../testdata/container-linux-6.12/sys", "acme", "host-a", nil, fixedNow)
+
+	found := false
+	for _, src := range srcs {
+		if src.typ != "vllm" {
+			continue
+		}
+		found = true
+		envs, err := src.collect()
+		if err != nil {
+			t.Fatalf("vllm collect: %v", err)
+		}
+		if len(envs) != 0 {
+			t.Fatalf("got %d envelopes, want 0 (endpoint unreachable, skipped not fatal)", len(envs))
+		}
+	}
+	if !found {
+		t.Fatal("vllm source not registered despite a configured endpoint")
+	}
+}
+
 func typesOf(srcs []source) []string {
 	out := make([]string, len(srcs))
 	for i, s := range srcs {

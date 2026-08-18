@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"time"
 
 	"github.com/memaudit/memaudit/internal/collector"
@@ -40,11 +41,10 @@ type source struct {
 	close   func() error
 }
 
-// buildSources returns the sources this build knows how to collect. Only
-// cgroup is conditional on cfg (the other collectors here have no
-// per-collector enable flag in the config schema — see Global
-// Constraints). DAMON, NVML, and vLLM sources land in later builds
-// alongside those collectors.
+// buildSources returns the sources this build knows how to collect.
+// cgroup, DAMON, NVML/gpu_mem, and vllm are each conditional on cfg;
+// host_mem/vmstat/psi/numa_mem/hugepages have no per-collector enable
+// flag and are always registered.
 func buildSources(cfg config.CollectorsConfig, procRoot, sysRoot, site, host string, k8sClient k8s.Client, now func() time.Time) []source {
 	srcs := []source{
 		{typ: "host_mem", tier: tierFast, collect: single(site, host, "host_mem", now, collector.NewMeminfo(procRoot).Collect)},
@@ -75,7 +75,55 @@ func buildSources(cfg config.CollectorsConfig, procRoot, sysRoot, site, host str
 		}
 	}
 
+	if src, ok := gpuSource(cfg.NVML, "nvidia-smi", site, host, now); ok {
+		srcs = append(srcs, src)
+	}
+
+	if len(cfg.VLLM.Endpoints) > 0 {
+		srcs = append(srcs, vllmSource(cfg.VLLM, site, host, now))
+	}
+
 	return srcs
+}
+
+// gpuSource returns the gpu_mem source and whether it should be
+// registered at all (only "false" — including the zero value — skips
+// it). Unlike DAMON's stateful kernel session, nvidia-smi is a stateless
+// per-tick exec with negligible cost: rather than probing once at
+// startup to decide, the source always registers when enabled and
+// self-reports absence on every tick if nvidia-smi isn't found — same
+// convention as PSI. binPath is a parameter (not hardcoded) so tests can
+// point it at a fixture instead of the real "nvidia-smi" on PATH.
+func gpuSource(cfg config.NVMLConfig, binPath, site, host string, now func() time.Time) (source, bool) {
+	if cfg.Enabled != "auto" && cfg.Enabled != "true" {
+		return source{}, false
+	}
+	if _, err := exec.LookPath(binPath); err != nil {
+		slog.Warn("gpu: nvidia-smi not found, gpu_mem collector will report nothing until it is", "bin", binPath)
+	}
+	gpu := collector.NewGPU(binPath)
+	return source{
+		typ:     "gpu_mem",
+		tier:    tierFast,
+		collect: multi(site, host, "gpu_mem", now, gpu.Collect),
+	}, true
+}
+
+// vllmSource returns the vllm source. Caller has already checked
+// len(cfg.Endpoints) > 0.
+func vllmSource(cfg config.VLLMConfig, site, host string, now func() time.Time) source {
+	v := collector.NewVLLM(cfg.Endpoints, cfg.MetricMap, nil)
+	return source{
+		typ:  "vllm",
+		tier: tierFast,
+		collect: func() ([]model.Envelope, error) {
+			recs, err := v.Collect(context.Background())
+			if err != nil {
+				return nil, err
+			}
+			return envelopes(site, host, "vllm", now, recs)
+		},
+	}
 }
 
 // damonSource returns the damon_hist source and whether DAMON is usable
