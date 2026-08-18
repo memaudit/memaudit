@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Exercises check-footprint.sh end-to-end against faked systemctl,
-# journalctl, and du, without touching the real service manager. Run
-# via `task check-footprint-test` or directly:
+# journalctl, du, and cgroup memory.stat, without touching the real
+# service manager. Run via `task check-footprint-test` or directly:
 # bash deploy/check-footprint-test.sh
 #
 # Requires Linux (check-footprint.sh calls GNU date -d) — on macOS, run
@@ -16,15 +16,24 @@ fail=0
 case_status=0
 case_out=""
 
-# run_case builds a fake PATH (systemctl/journalctl/du) reporting the
-# given metrics, then runs check-footprint.sh against it. Leaves the
-# outcome in $case_status / $case_out for the caller to assert on.
+# run_case builds a fake PATH (systemctl/journalctl/du) plus a fake
+# cgroup tree with a memory.stat, then runs check-footprint.sh against
+# it. Leaves the outcome in $case_status / $case_out for the caller to
+# assert on. mem_anon is the "anon" field check-footprint.sh actually
+# reads — a large file_cache value is included too, to prove the script
+# ignores cache and doesn't false-fail on it.
 run_case() {
-	local active_enter="$1" cpu_nsec="$2" mem_current="$3" spool_bytes="$4" journal_has_error="$5"
+	local active_enter="$1" cpu_nsec="$2" mem_anon="$3" spool_bytes="$4" journal_has_error="$5"
 	local work fakebin
 	work="$(mktemp -d)"
 	fakebin="$work/fakebin"
-	mkdir -p "$fakebin" "$work/spool"
+	mkdir -p "$fakebin" "$work/spool" "$work/cgroup/system.slice/memauditd.service"
+
+	cat >"$work/cgroup/system.slice/memauditd.service/memory.stat" <<-EOF
+		anon $mem_anon
+		file 999999999
+		kernel 1000000
+	EOF
 
 	local journal_file="$work/journal.log"
 	if [ "$journal_has_error" = "yes" ]; then
@@ -45,7 +54,7 @@ run_case() {
 		case "$prop" in
 		ActiveEnterTimestamp) echo "$FAKE_ACTIVE_ENTER" ;;
 		CPUUsageNSec) echo "$FAKE_CPU_NSEC" ;;
-		MemoryCurrent) echo "$FAKE_MEM_CURRENT" ;;
+		ControlGroup) echo "/system.slice/memauditd.service" ;;
 		esac
 	EOF
 	chmod +x "$fakebin/systemctl"
@@ -66,9 +75,8 @@ run_case() {
 	PATH="$fakebin:$PATH" \
 		FAKE_ACTIVE_ENTER="$active_enter" \
 		FAKE_CPU_NSEC="$cpu_nsec" \
-		FAKE_MEM_CURRENT="$mem_current" \
 		FAKE_SPOOL_BYTES="$spool_bytes" \
-		"$root/deploy/check-footprint.sh" --spool-dir "$work/spool" >"$work/out.log" 2>&1 || status=$?
+		"$root/deploy/check-footprint.sh" --spool-dir "$work/spool" --cgroup-root "$work/cgroup" >"$work/out.log" 2>&1 || status=$?
 
 	case_status=$status
 	case_out="$(cat "$work/out.log")"
@@ -104,12 +112,13 @@ assert_contains() {
 now="$(date +%s)"
 active_100s_ago="$(date -u -d "@$((now - 100))" +"%a %Y-%m-%d %H:%M:%S UTC")"
 
-echo "--- case: within budget ---"
+echo "--- case: within budget (large fake cache must not count against RSS) ---"
 run_case "$active_100s_ago" 200000000 8388608 1048576 no
 echo "$case_out"
 assert "exits 0" [ "$case_status" -eq 0 ]
 assert_contains "reports within budget" "verdict: within budget"
 assert_contains "CPU line OK" "... OK"
+assert_contains "RSS reports anon (8.0 MiB), not the ~954 MiB fake cache" "RSS anon (8.0 MiB"
 
 echo "--- case: CPU over budget ---"
 run_case "$active_100s_ago" 1000000000 8388608 1048576 no
