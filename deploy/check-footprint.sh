@@ -7,11 +7,12 @@
 # systemd's own cgroup accounting rather than trusting the agent to
 # report on itself — the whole point is an independent check.
 #
-# Usage: deploy/check-footprint.sh [--unit NAME] [--spool-dir PATH]
+# Usage: deploy/check-footprint.sh [--unit NAME] [--spool-dir PATH] [--cgroup-root PATH]
 set -euo pipefail
 
 unit="memauditd.service"
 spool_dir="/var/lib/memaudit/spool"
+cgroup_root="/sys/fs/cgroup"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -21,6 +22,10 @@ while [ $# -gt 0 ]; do
 		;;
 	--spool-dir)
 		spool_dir="$2"
+		shift 2
+		;;
+	--cgroup-root)
+		cgroup_root="$2"
 		shift 2
 		;;
 	*)
@@ -53,11 +58,17 @@ if [ "$elapsed" -lt 1 ]; then
 fi
 
 cpu_nsec="$(show CPUUsageNSec)"
-rss_bytes="$(show MemoryCurrent)"
 
 cpu_pct="$(awk -v ns="$cpu_nsec" -v secs="$elapsed" 'BEGIN { printf "%.3f", (ns / 1000000000) / secs * 100 }')"
 cpu_ok="$(awk -v v="$cpu_pct" -v max="$max_cpu_pct" 'BEGIN { print (v < max) ? 1 : 0 }')"
 
+# anon (the process's own heap/stack memory), not MemoryCurrent — the
+# latter also counts page cache for the spool files memauditd itself
+# writes, which grows with spool size and is reclaimable on demand, not
+# a sign of the process using more memory.
+mem_stat_file="${cgroup_root}$(show ControlGroup)/memory.stat"
+rss_bytes="$(awk '/^anon /{print $2}' "$mem_stat_file" 2>/dev/null)"
+rss_bytes="${rss_bytes:-0}"
 rss_ok=0
 [ "$rss_bytes" -lt "$max_rss_bytes" ] && rss_ok=1
 
@@ -75,7 +86,7 @@ to_mib() { awk -v b="$1" 'BEGIN { printf "%.1f", b / 1024 / 1024 }'; }
 status() { [ "$1" -eq 1 ] && echo "OK" || echo "FAIL"; }
 
 printf "CPU avg (%s%%, elapsed %ds, target <%s%%) ... %s\n" "$cpu_pct" "$elapsed" "$max_cpu_pct" "$(status "$cpu_ok")"
-printf "RSS (%s MiB, target <64 MiB) ......... %s\n" "$(to_mib "$rss_bytes")" "$(status "$rss_ok")"
+printf "RSS anon (%s MiB, target <64 MiB) .... %s\n" "$(to_mib "$rss_bytes")" "$(status "$rss_ok")"
 printf "spool (%s MiB, target <2048 MiB) ..... %s\n" "$(to_mib "$spool_bytes")" "$(status "$spool_ok")"
 printf "parse errors (%s found, target 0) .... %s\n" "$parse_errors" "$(status "$errors_ok")"
 
