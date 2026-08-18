@@ -70,6 +70,37 @@ func TestBuildSourcesCgroupEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildSourcesDamonDisabledByDefault(t *testing.T) {
+	cfg := config.CollectorsConfig{} // Damon.Enabled defaults to false (zero value)
+	srcs := buildSources(cfg, "../../testdata/fedora-damon/proc", "../../testdata/fedora-damon/sys", "acme", "host-a", nil, fixedNow)
+
+	for _, src := range srcs {
+		if src.typ == "damon_hist" {
+			t.Fatal("damon_hist source registered despite Damon.Enabled=false")
+		}
+	}
+}
+
+func TestBuildSourcesDamonAbsentSkipsGracefully(t *testing.T) {
+	cfg := config.CollectorsConfig{
+		Damon: config.DamonConfig{Enabled: true, SampleUS: 5_000, AggrUS: 100_000, MaxRegions: 1_000},
+	}
+	// No DAMON sysfs on this fixture root at all: buildSources must not
+	// panic or error, just skip registering damon_hist.
+	srcs := buildSources(cfg, "../../testdata/edge-cases/damon-absent/proc", "../../testdata/edge-cases/vmstat-old-kernel/sys", "acme", "host-a", nil, fixedNow)
+
+	for _, src := range srcs {
+		if src.typ == "damon_hist" {
+			t.Fatal("damon_hist source registered despite no DAMON sysfs on this host")
+		}
+	}
+	// Every other source should still be there — DAMON's absence must not
+	// take anything else down with it.
+	got := typesOf(srcs)
+	want := []string{"host_mem", "vmstat", "psi", "numa_mem", "hugepages"}
+	assertSameSet(t, got, want)
+}
+
 func typesOf(srcs []source) []string {
 	out := make([]string, len(srcs))
 	for i, s := range srcs {

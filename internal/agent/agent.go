@@ -101,7 +101,7 @@ func Run(ctx context.Context, cfg Config) error {
 		wg.Add(1)
 		go func(src source) {
 			defer wg.Done()
-			runSource(ctx, src, cfg.Interval*time.Duration(src.tier), cfg.Jitter, cfg.Spool, &writeMu)
+			runSourceAndClose(ctx, src, cfg.Interval*time.Duration(src.tier), cfg.Jitter, cfg.Spool, &writeMu)
 		}(src)
 	}
 
@@ -170,6 +170,21 @@ func runSource(ctx context.Context, src source, interval time.Duration, jitter f
 		case <-t.C:
 			tick()
 		}
+	}
+}
+
+// runSourceAndClose runs src until ctx is cancelled, then — once every
+// tick has fully completed, never concurrently with one — calls src.close
+// if set. Safe by construction: runSource's tick loop and its return are
+// sequential within this same call, so close only ever runs after the
+// last in-flight collect() has returned.
+func runSourceAndClose(ctx context.Context, src source, interval time.Duration, jitter func(time.Duration) time.Duration, sp *spool.Spool, writeMu *sync.Mutex) {
+	runSource(ctx, src, interval, jitter, sp, writeMu)
+	if src.close == nil {
+		return
+	}
+	if err := src.close(); err != nil {
+		slog.Error("source close failed", "type", src.typ, "err", err)
 	}
 }
 

@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/memaudit/memaudit/pkg/damon"
 )
 
 // Check is one row of the capability matrix.
@@ -33,8 +35,8 @@ const hostMemCheckName = "host memory (/proc/meminfo)"
 
 // Run inspects procRoot (normally "/proc") and sysRoot (normally "/sys")
 // and returns the capability matrix. Only checks for collectors this
-// build actually ships are included — DAMON, NVML, and vLLM rows land in
-// later builds alongside those collectors.
+// build actually ships are included — NVML and vLLM rows land in later
+// builds alongside those collectors.
 func Run(procRoot, sysRoot string) Result {
 	checks := []Check{
 		hostMemCheck(procRoot),
@@ -42,6 +44,7 @@ func Run(procRoot, sysRoot string) Result {
 		cgroupV2Check(sysRoot),
 		psiCheck(procRoot),
 	}
+	checks = append(checks, damonChecks(procRoot, sysRoot)...)
 	return Result{Checks: checks, Verdict: verdict(checks)}
 }
 
@@ -106,6 +109,36 @@ func cgroupV2Check(sysRoot string) Check {
 		return Check{Name: "cgroup v2 unified", Detail: err.Error()}
 	}
 	return Check{Name: "cgroup v2 unified", OK: true}
+}
+
+// damonChecks reports the three DAMON capability rungs the collector
+// cares about. Absence at any rung is a degraded mode, not a hard
+// failure — same as PSI and cgroup v1. A "-> mode: full histogram"-style
+// suffix on the tried_regions OK line isn't reproduced here since Check's
+// rendering only shows Detail on failure — the three plain OK/FAIL rows
+// already convey the same information without generalizing the shared
+// renderer for one cosmetic line.
+func damonChecks(procRoot, sysRoot string) []Check {
+	caps, err := damon.DetectAt(procRoot, sysRoot)
+	if err != nil {
+		return []Check{
+			{Name: "DAMON sysfs", Detail: err.Error()},
+			{Name: "DAMON paddr", Detail: err.Error()},
+			{Name: "DAMON tried_regions (>=6.2)", Detail: err.Error()},
+		}
+	}
+	return []Check{
+		{Name: "DAMON sysfs", OK: caps.Sysfs, Detail: damonAbsentDetail(caps.Sysfs)},
+		{Name: "DAMON paddr", OK: caps.Paddr, Detail: damonAbsentDetail(caps.Paddr)},
+		{Name: "DAMON tried_regions (>=6.2)", OK: caps.TriedRegions, Detail: damonAbsentDetail(caps.TriedRegions)},
+	}
+}
+
+func damonAbsentDetail(ok bool) string {
+	if ok {
+		return ""
+	}
+	return "DAMON unavailable — cold-page estimate not computed"
 }
 
 func psiCheck(procRoot string) Check {

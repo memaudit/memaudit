@@ -45,10 +45,13 @@ type Caps struct {
 // rung is a valid, expected state (nil error), matching every other
 // capability check in this project.
 func Detect() (Caps, error) {
-	return detect("/proc", "/sys")
+	return DetectAt("/proc", "/sys")
 }
 
-func detect(procRoot, sysRoot string) (Caps, error) {
+// DetectAt is Detect with explicit procRoot/sysRoot, for callers (like
+// memauditd's selftest) that need to run the same check against a fixture
+// root in tests.
+func DetectAt(procRoot, sysRoot string) (Caps, error) {
 	nrKdamonds := filepath.Join(sysRoot, sysfsAdminRoot, "kdamonds", "nr_kdamonds")
 	if _, err := os.Stat(nrKdamonds); err != nil {
 		return Caps{}, nil //nolint:nilnil // absence is a valid, expected state here

@@ -34,7 +34,11 @@ Golden fixtures used by the collector parser tests in `internal/collector`:
   controller-per-directory `sys/fs/cgroup` layout (`memory/`, `cpu/`)
   and, deliberately, no `cgroup.controllers` file at the root — that
   absence is what the cgroup collector actually keys off to detect v1
-  and skip walking rather than misreading a v1 tree as v2.
+  and skip walking rather than misreading a v1 tree as v2. Also carries
+  the same placeholder DAMON admin dir as `cgroup-v2-k8s/` below, for the
+  same reason: `TestRunCgroupV1Host` isolates the cgroup-v1 case, and a
+  spurious "no DAMON" note in its expected verdict string would just be
+  noise unrelated to what the test is proving.
 - `hugepages-multi-node/` — hand-authored, not a real capture. Exercises
   two page sizes: one broken out per NUMA node (and missing
   `resv_hugepages` on one node, to prove missing per-node files read as
@@ -52,7 +56,11 @@ Golden fixtures used by the collector parser tests in `internal/collector`:
   missing `memory.{max,min,peak}` / `memory.pressure` / `memory.stat`
   all degrade to null/zero rather than erroring). `scripts/capture-fixtures.sh`
   intentionally doesn't attempt to capture real cgroup trees for the
-  same reason.
+  same reason. Also carries a placeholder `sys/kernel/mm/damon/admin/`
+  (content `0`, never parsed) so it stays a genuine "every check is OK"
+  fixture for `TestRunAllCapsOK` now that DAMON checks exist — without
+  it, that test would fail on the unrelated "no DAMON sysfs" case instead
+  of testing what its name says.
 - `selftest/` — hand-authored `proc` trees for `internal/selftest`'s own
   tests, not real captures: selftest only ever `os.Stat`s or
   reads-and-trims these files (kernel version string, presence of
