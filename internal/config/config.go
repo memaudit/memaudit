@@ -20,6 +20,17 @@ type Config struct {
 	Spool      SpoolConfig      `yaml:"spool"`
 	Ship       ShipConfig       `yaml:"ship"`
 	Log        LogConfig        `yaml:"log"`
+	Debug      DebugConfig      `yaml:"debug"`
+}
+
+// DebugConfig configures optional runtime-debugging aids — off by
+// default, never active unless an operator deliberately turns them on.
+type DebugConfig struct {
+	// PprofAddr, if set, exposes net/http/pprof for diagnosing a real
+	// leak or performance problem. Must be a loopback address
+	// (127.0.0.1, ::1, or localhost) with a port — memauditd refuses to
+	// start rather than bind this to a non-loopback interface.
+	PprofAddr string `yaml:"pprof_addr"`
 }
 
 type CollectorsConfig struct {

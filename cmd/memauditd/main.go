@@ -20,6 +20,7 @@ import (
 	"github.com/memaudit/memaudit/internal/agent"
 	"github.com/memaudit/memaudit/internal/config"
 	"github.com/memaudit/memaudit/internal/k8s"
+	"github.com/memaudit/memaudit/internal/pprofserver"
 	"github.com/memaudit/memaudit/internal/selftest"
 	"github.com/memaudit/memaudit/internal/ship"
 	"github.com/memaudit/memaudit/internal/spool"
@@ -121,6 +122,24 @@ func runCmd(args []string) {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if cfg.Debug.PprofAddr != "" {
+		ln, err := pprofserver.Listen(cfg.Debug.PprofAddr)
+		if err != nil {
+			// A rejected address (e.g. non-loopback) is a security-relevant
+			// misconfiguration, not something to silently ignore or fall
+			// back from -- refuse to start, same as ship.mode=push with no
+			// ship.url.
+			slog.Error("listen for debug pprof endpoint", "err", err)
+			os.Exit(1)
+		}
+		slog.Info("debug pprof endpoint listening", "addr", ln.Addr().String())
+		go func() {
+			if err := pprofserver.Serve(ctx, ln); err != nil {
+				slog.Error("debug pprof endpoint", "err", err)
+			}
+		}()
+	}
 
 	if err := agent.Run(ctx, agent.Config{
 		Site:       cfg.Site,
