@@ -1,0 +1,79 @@
+00000000-00000fff : Reserved
+00001000-0009fbff : System RAM
+0009fc00-0009ffff : Reserved
+000a0000-000bffff : PCI Bus 0000:00
+000c0000-000c99ff : Video ROM
+000ca000-000cadff : Adapter ROM
+000cb000-000cd3ff : Adapter ROM
+000f0000-000fffff : Reserved
+  000f0000-000fffff : System ROM
+00100000-7ffdbfff : System RAM
+7ffdc000-7fffffff : Reserved
+80000000-afffffff : PCI Bus 0000:00
+b0000000-bfffffff : PCI ECAM 0000 [bus 00-ff]
+  b0000000-bfffffff : Reserved
+    b0000000-bfffffff : PNP0C01:00
+c0000000-febfffff : PCI Bus 0000:00
+  fb800000-fbffffff : 0000:00:01.0
+  fc000000-fc1fffff : PCI Bus 0000:09
+  fc200000-fc3fffff : PCI Bus 0000:08
+  fc400000-fc5fffff : PCI Bus 0000:07
+  fc600000-fc7fffff : PCI Bus 0000:06
+    fc600000-fc603fff : 0000:06:00.0
+      fc600000-fc603fff : virtio-pci-modern
+  fc800000-fc9fffff : PCI Bus 0000:05
+    fc800000-fc803fff : 0000:05:00.0
+      fc800000-fc803fff : virtio-pci-modern
+  fca00000-fcbfffff : PCI Bus 0000:04
+    fca00000-fca03fff : 0000:04:00.0
+      fca00000-fca03fff : virtio-pci-modern
+  fcc00000-fcdfffff : PCI Bus 0000:03
+    fcc00000-fcc03fff : 0000:03:00.0
+      fcc00000-fcc03fff : virtio-pci-modern
+  fce00000-fcffffff : PCI Bus 0000:02
+  fd000000-fd1fffff : PCI Bus 0000:01
+    fd000000-fd003fff : 0000:01:00.0
+      fd000000-fd003fff : virtio-pci-modern
+  fd200000-fd203fff : 0000:00:01.0
+    fd200000-fd203fff : virtio-pci-modern
+  fd800000-fd9fffff : PCI Bus 0000:09
+  fda00000-fdbfffff : PCI Bus 0000:08
+  fdc00000-fddfffff : PCI Bus 0000:07
+  fde00000-fdffffff : PCI Bus 0000:06
+    fde00000-fde00fff : 0000:06:00.0
+  fe000000-fe1fffff : PCI Bus 0000:05
+    fe000000-fe000fff : 0000:05:00.0
+  fe200000-fe3fffff : PCI Bus 0000:04
+  fe400000-fe5fffff : PCI Bus 0000:03
+    fe400000-fe400fff : 0000:03:00.0
+  fe600000-fe7fffff : PCI Bus 0000:02
+    fe600000-fe603fff : 0000:02:00.0
+      fe600000-fe603fff : xhci-hcd
+  fe800000-fe9fffff : PCI Bus 0000:01
+    fe800000-fe87ffff : 0000:01:00.0
+    fe880000-fe880fff : 0000:01:00.0
+  fea10000-fea10fff : 0000:00:01.0
+  fea11000-fea11fff : 0000:00:02.0
+  fea12000-fea12fff : 0000:00:02.1
+  fea13000-fea13fff : 0000:00:02.2
+  fea14000-fea14fff : 0000:00:02.3
+  fea15000-fea15fff : 0000:00:02.4
+  fea16000-fea16fff : 0000:00:02.5
+  fea17000-fea17fff : 0000:00:02.6
+  fea18000-fea18fff : 0000:00:02.7
+  fea19000-fea19fff : 0000:00:03.0
+  fea1a000-fea1afff : 0000:00:1f.2
+    fea1a000-fea1afff : ahci
+fec00000-fec003ff : IOAPIC 0
+fed00000-fed003ff : HPET 0
+  fed00000-fed003ff : PNP0103:00
+fed1c000-fed1ffff : Reserved
+feffc000-feffffff : Reserved
+fffc0000-ffffffff : Reserved
+100000000-179ffffff : System RAM
+  16d000000-16e7a0aa7 : Kernel code
+  16e800000-16fa2afff : Kernel rodata
+  16fc00000-1700a147f : Kernel data
+  170bb2000-170ffffff : Kernel bss
+17a000000-17bffffff : RAM buffer
+180000000-97fffffff : PCI Bus 0000:00

@@ -71,6 +71,27 @@ handles this the same way it handles any other missing field (zero, not
 an error); the `container-linux-6.12` fixture is incidentally also a test
 of that path, since it's an arm64 capture.
 
+- `fedora-damon/` — used by `pkg/damon`'s tests (not `internal/collector`,
+  which is why this one lives outside the JSON-golden pattern above —
+  `pkg/damon` asserts on its own Go types directly, no `expected/*.json`).
+  Real capture from a Fedora Server box rented specifically to get a
+  kernel with `CONFIG_DAMON_SYSFS` on (confirmed absent on both GitHub
+  Actions' `ubuntu-latest` and a stock Hetzner Ubuntu 24.04 image; present
+  on Fedora), kernel 7.1.6 x86_64. `proc/iomem` and
+  `proc/sys/kernel/osrelease` are real `cat` output; `sys/kernel/mm/damon/admin/kdamonds/nr_kdamonds`
+  is real too (content `0` — untouched, `Detect` only checks presence).
+  Exercises `TestParseIomemFileGolden` and `TestDetectGoldenFullHistogram`
+  (the >=6.2, full-histogram-capable rung).
+- `edge-cases/damon-absent/`, `edge-cases/damon-pre-6.2/`,
+  `edge-cases/iomem-non-root/` — hand-authored, `pkg/damon`'s absence and
+  version-threshold cases: no DAMON sysfs at all (reuses
+  `edge-cases/vmstat-old-kernel/sys` as its "no sysfs at all" fixture, same
+  one-fixture-many-collectors reuse as above); sysfs present but kernel
+  5.19 (the 5.18-6.1 stats-only rung, `TriedRegions` should read false);
+  and `/proc/iomem` with every address masked to `00000000-00000000`
+  (what unprivileged reads look like), to prove `ParseIomem` returns a
+  clear "needs root" error instead of silently returning zero ranges.
+
 **Get more real fixtures**: run `task fixtures -- <name>` (wraps
 `scripts/capture-fixtures.sh`) on a real box — Ubuntu 24.04 HWE, Debian
 12, and a RHEL-clone are good targets for real distro/kernel diversity.
