@@ -165,3 +165,17 @@ type CgroupMem struct {
 	K8sContainerID string            `json:"k8s_container_id,omitempty"`
 	K8sLabels      map[string]string `json:"k8s_labels,omitempty"`
 }
+
+// DamonHist is a pre-bucketed cold-page histogram derived from a DAMON
+// snapshot's regions — never raw regions, whose cardinality would be
+// unbounded. Buckets are cumulative: a region cold for Cold24h also
+// counts toward every smaller bucket.
+type DamonHist struct {
+	MonitoredBytes uint64 `json:"monitored_bytes"`
+	HotBytes       uint64 `json:"hot_bytes"`
+	Cold60s        uint64 `json:"cold_60s"`
+	Cold300s       uint64 `json:"cold_300s"`
+	Cold1h         uint64 `json:"cold_1h"`
+	Cold6h         uint64 `json:"cold_6h"`
+	Cold24h        uint64 `json:"cold_24h"`
+}

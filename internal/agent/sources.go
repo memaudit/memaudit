@@ -7,12 +7,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/memaudit/memaudit/internal/collector"
 	"github.com/memaudit/memaudit/internal/config"
 	"github.com/memaudit/memaudit/internal/k8s"
 	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/damon"
 )
 
 // tier is how much slower than the agent's base interval a source ticks,
@@ -28,11 +30,14 @@ const (
 )
 
 // source ties one record type's collector to its tick tier and a uniform
-// collect function.
+// collect function. close is optional (nil for every stateless
+// collector) — it's for a source like DAMON's, which holds a live kernel
+// session that must be torn down on shutdown, not just stop being ticked.
 type source struct {
 	typ     string
 	tier    tier
 	collect func() ([]model.Envelope, error)
+	close   func() error
 }
 
 // buildSources returns the sources this build knows how to collect. Only
@@ -64,7 +69,62 @@ func buildSources(cfg config.CollectorsConfig, procRoot, sysRoot, site, host str
 		})
 	}
 
+	if cfg.Damon.Enabled {
+		if src, ok := damonSource(cfg.Damon, procRoot, sysRoot, site, host, now); ok {
+			srcs = append(srcs, src)
+		}
+	}
+
 	return srcs
+}
+
+// damonSource returns the damon_hist source and whether DAMON is usable
+// on this host. Capability detection is checked against procRoot/sysRoot
+// (fixture-testable, matching every other collector here); ParseIomem and
+// Start operate against the real host regardless — DAMON genuinely can't
+// be exercised against a fixture, only a live kernel, so this only ever
+// succeeds for real. Any failure at any step — unsupported kernel,
+// ParseIomem needing root, a sysfs write rejected — is logged once and
+// treated the same as "disabled": the agent runs without DAMON rather
+// than failing to start.
+func damonSource(cfg config.DamonConfig, procRoot, sysRoot, site, host string, now func() time.Time) (source, bool) {
+	caps, err := damon.DetectAt(procRoot, sysRoot)
+	if err != nil {
+		slog.Warn("damon: capability detection failed, disabling collector", "err", err)
+		return source{}, false
+	}
+	if !caps.TriedRegions {
+		slog.Warn("damon: kernel doesn't support full histogram mode (needs a >=6.2 tried_regions-capable kernel), disabling collector")
+		return source{}, false
+	}
+
+	regions, err := damon.ParseIomem()
+	if err != nil {
+		slog.Warn("damon: ParseIomem failed, disabling collector", "err", err)
+		return source{}, false
+	}
+
+	sess, err := damon.Start(damon.Config{
+		Ops:        "paddr",
+		SampleUS:   cfg.SampleUS,
+		AggrUS:     cfg.AggrUS,
+		UpdateUS:   1_000_000,
+		MinRegions: 10,
+		MaxRegions: cfg.MaxRegions,
+		Regions:    regions,
+	})
+	if err != nil {
+		slog.Warn("damon: Start failed, disabling collector", "err", err)
+		return source{}, false
+	}
+
+	dc := collector.NewDamon(sess, cfg.AggrUS)
+	return source{
+		typ:     "damon_hist",
+		tier:    tierSlow,
+		collect: single(site, host, "damon_hist", now, dc.Collect),
+		close:   sess.Stop,
+	}, true
 }
 
 // single adapts a collector whose Collect returns (*T, error): a nil

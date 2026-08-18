@@ -32,7 +32,7 @@ func testConfig() Config {
 		MinRegions: 10,
 		MaxRegions: 1_000,
 		Regions: []AddrRange{
-			{Start: 0x1000, End: 0x9fbff},    // inclusive per /proc/iomem
+			{Start: 0x1000, End: 0x9fbff}, // inclusive per /proc/iomem
 			{Start: 0x100000, End: 0x7ffdbfff},
 		},
 	}

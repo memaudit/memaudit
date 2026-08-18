@@ -21,6 +21,29 @@ func TestRunAllCapsOK(t *testing.T) {
 	}
 }
 
+func TestRunDamonFullHistogram(t *testing.T) {
+	res := Run("../../testdata/fedora-damon/proc", "../../testdata/fedora-damon/sys")
+
+	for _, name := range []string{"DAMON sysfs", "DAMON paddr", "DAMON tried_regions (>=6.2)"} {
+		if c := findCheck(t, res, name); !c.OK {
+			t.Errorf("check %q: got FAIL (%s), want OK", name, c.Detail)
+		}
+	}
+}
+
+func TestRunDamonAbsent(t *testing.T) {
+	res := Run("../../testdata/selftest/full-caps/proc", "../../testdata/edge-cases/vmstat-old-kernel/sys")
+
+	for _, name := range []string{"DAMON sysfs", "DAMON paddr", "DAMON tried_regions (>=6.2)"} {
+		if c := findCheck(t, res, name); c.OK {
+			t.Errorf("check %q: got OK, want FAIL (fixture has no DAMON sysfs)", name)
+		}
+	}
+	if res.Failed() {
+		t.Error("Failed() = true, want false — DAMON absence is a degraded mode, not a hard failure")
+	}
+}
+
 func TestRunPSIAbsent(t *testing.T) {
 	res := Run("../../testdata/selftest/psi-absent/proc", "../../testdata/cgroup-v2-k8s/sys")
 
