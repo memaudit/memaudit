@@ -166,6 +166,45 @@ type CgroupMem struct {
 	K8sLabels      map[string]string `json:"k8s_labels,omitempty"`
 }
 
+// GPUMem is one gpu_mem payload per GPU device, sourced from `nvidia-smi
+// --query-gpu`/`--query-compute-apps`. MIG present means Processes and
+// the memory/utilization fields are parent-device totals only, not
+// broken out per MIG instance (v1 punt — the CSV query interface doesn't
+// expose per-instance data at all, only NVML does).
+type GPUMem struct {
+	Index      int          `json:"index"`
+	UUID       string       `json:"uuid"`
+	Name       string       `json:"name"`
+	MemTotal   uint64       `json:"mem_total"`
+	MemUsed    uint64       `json:"mem_used"`
+	MemFree    uint64       `json:"mem_free"`
+	UtilGPU    uint32       `json:"util_gpu"`
+	UtilMemory uint32       `json:"util_mem"`
+	MIG        bool         `json:"mig"`
+	Processes  []GPUProcess `json:"procs,omitempty"`
+}
+
+// GPUProcess is one compute process's GPU memory usage, from
+// nvidia-smi --query-compute-apps.
+type GPUProcess struct {
+	PID        uint32 `json:"pid"`
+	UsedMemory uint64 `json:"used"`
+}
+
+// VLLM is one vllm payload per configured endpoint, scraped from its
+// Prometheus /metrics and mapped via collectors.vllm.metric_map.
+type VLLM struct {
+	Endpoint      string  `json:"endpoint"`
+	CacheUsage    float64 `json:"cache_usage"`
+	PrefixHits    float64 `json:"prefix_hits"`
+	PrefixQueries float64 `json:"prefix_queries"`
+	Preemptions   float64 `json:"preemptions"`
+	Running       float64 `json:"running"`
+	Waiting       float64 `json:"waiting"`
+	PromptTokens  float64 `json:"prompt_tokens"`
+	GenTokens     float64 `json:"gen_tokens"`
+}
+
 // DamonHist is a pre-bucketed cold-page histogram derived from a DAMON
 // snapshot's regions — never raw regions, whose cardinality would be
 // unbounded. Buckets are cumulative: a region cold for Cold24h also

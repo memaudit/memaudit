@@ -168,8 +168,3 @@ func selftestCmd(_ []string) {
 		os.Exit(1)
 	}
 }
-
-func vllmDumpCmd(_ []string) {
-	fmt.Fprintln(os.Stderr, "memauditd vllm-dump: not implemented yet")
-	os.Exit(1)
-}

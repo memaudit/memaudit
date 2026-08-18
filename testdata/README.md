@@ -100,6 +100,21 @@ of that path, since it's an arm64 capture.
   (what unprivileged reads look like), to prove `ParseIomem` returns a
   clear "needs root" error instead of silently returning zero ranges.
 
+- `runpod-a40-x2/` — real capture, not `proc`/`sys` trees like everything
+  above (`internal/collector`'s GPU tests read these two CSV files
+  directly, no `expected/*.json`). `query-gpu.csv` and
+  `query-compute-apps.csv` are the raw `nvidia-smi --query-gpu=...`/
+  `--query-compute-apps=...` output from a rented 2x NVIDIA A40 box
+  (RunPod, driver 580.159.04), captured while a real dual-GPU workload
+  was running (one process pinned to each device) specifically to
+  exercise the one assumption that couldn't be verified any other
+  way: that `--query-compute-apps`' `gpu_uuid` field actually correlates
+  a process back to its real owning device. It does (PID 6643 ↔ device
+  0's UUID, PID 6644 ↔ device 1's, cross-checked against the same
+  session's `--query-gpu` output). Also real-world confirmation that
+  `mig.mode.current` reads `[N/A]` on non-MIG-capable cards like the
+  A40, not just `"Enabled"`/`"Disabled"`.
+
 **Get more real fixtures**: run `task fixtures -- <name>` (wraps
 `scripts/capture-fixtures.sh`) on a real box — Ubuntu 24.04 HWE, Debian
 12, and a RHEL-clone are good targets for real distro/kernel diversity.

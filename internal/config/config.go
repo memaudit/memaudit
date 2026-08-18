@@ -101,6 +101,19 @@ func Default() Config {
 				MaxRegions: 1_000,
 			},
 			NVML: NVMLConfig{Enabled: "auto"},
+			VLLM: VLLMConfig{
+				//nolint:gosec // G101: false positive — "prompt_tokens"/"gen_tokens" are Prometheus metric names, not credentials
+				MetricMap: map[string]string{
+					"cache_usage":    "vllm:gpu_cache_usage_perc",
+					"prefix_hits":    "vllm:gpu_prefix_cache_hits_total",
+					"prefix_queries": "vllm:gpu_prefix_cache_queries_total",
+					"preemptions":    "vllm:num_preemptions_total",
+					"running":        "vllm:num_requests_running",
+					"waiting":        "vllm:num_requests_waiting",
+					"prompt_tokens":  "vllm:prompt_tokens_total",
+					"gen_tokens":     "vllm:generation_tokens_total",
+				},
+			},
 		},
 		K8s: K8sConfig{
 			Kubelet:   "https://127.0.0.1:10250",
