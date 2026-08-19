@@ -6,8 +6,8 @@ package collector
 import (
 	"testing"
 
-	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/pkg/damon"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // aggrUS below is 100_000 (100ms), the collector's default aggregation

@@ -4,8 +4,8 @@
 package collector
 
 import (
-	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/pkg/damon"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // Damon collects the damon_hist record from an already-started DAMON
