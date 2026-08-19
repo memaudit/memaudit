@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // Hugepages collects one record per (page size, NUMA node) from

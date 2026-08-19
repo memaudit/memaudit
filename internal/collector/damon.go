@@ -4,7 +4,7 @@
 package collector
 
 import (
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/pkg/damon"
 )
 

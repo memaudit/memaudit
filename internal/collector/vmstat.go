@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // Vmstat collects the vmstat record from /proc/vmstat. There's no

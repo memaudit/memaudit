@@ -11,7 +11,7 @@ import (
 
 	"github.com/prometheus/procfs"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // PSI collects the psi record from /proc/pressure/memory.

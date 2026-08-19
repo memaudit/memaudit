@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/internal/spool"
 )
 

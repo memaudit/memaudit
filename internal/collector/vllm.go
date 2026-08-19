@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/common/expfmt"
 	promodel "github.com/prometheus/common/model"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 const httpClientTimeout = 10 * time.Second

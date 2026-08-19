@@ -13,7 +13,7 @@ import (
 
 	"github.com/prometheus/procfs"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // Meminfo collects the host_mem record from /proc/meminfo.
