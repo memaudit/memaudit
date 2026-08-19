@@ -14,8 +14,8 @@ import (
 	"github.com/memaudit/memaudit/internal/collector"
 	"github.com/memaudit/memaudit/internal/config"
 	"github.com/memaudit/memaudit/internal/k8s"
-	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/pkg/damon"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // tier is how much slower than the agent's base interval a source ticks,

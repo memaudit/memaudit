@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/internal/spool"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 func TestRunSourceAndCloseCallsCloseAfterShutdown(t *testing.T) {

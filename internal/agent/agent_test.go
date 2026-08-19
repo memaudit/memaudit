@@ -19,9 +19,9 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/memaudit/memaudit/internal/config"
-	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/internal/ship"
 	"github.com/memaudit/memaudit/internal/spool"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // TestRunBundleModeCollectsAndFlushes proves the full wiring: goroutines
