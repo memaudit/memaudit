@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // Numa collects one numa_mem record per NUMA node from

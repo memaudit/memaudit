@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 const gpuQueryFields = "index,uuid,name,memory.total,memory.used,memory.free,utilization.gpu,utilization.memory,mig.mode.current"

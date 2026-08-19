@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/zstd"
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/oklog/ulid/v2"
 )
 

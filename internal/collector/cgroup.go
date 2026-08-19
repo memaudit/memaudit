@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/memaudit/memaudit/internal/k8s"
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 // maxCgroupDepth caps how many path segments below /sys/fs/cgroup are

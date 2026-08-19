@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 )
 
 func TestParseGPUQueryCSVGolden(t *testing.T) {

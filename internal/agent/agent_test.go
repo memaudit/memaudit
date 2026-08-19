@@ -19,7 +19,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/memaudit/memaudit/internal/config"
-	"github.com/memaudit/memaudit/internal/model"
+	"github.com/memaudit/memaudit/pkg/model"
 	"github.com/memaudit/memaudit/internal/ship"
 	"github.com/memaudit/memaudit/internal/spool"
 )
