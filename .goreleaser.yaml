@@ -16,14 +16,9 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
 
-  - id: memaudit-synth
-    main: ./cmd/memaudit-synth
-    binary: memaudit-synth
-    env: [CGO_ENABLED=0]
-    goos: [linux]
-    goarch: [amd64, arm64]
-    ldflags:
-      - -s -w -X main.version={{.Version}}
+# memaudit-synth isn't implemented yet (cmd/memaudit-synth is still a
+# stub) — leave it out of releases until it does something. Re-add a
+# build entry for it once it's real.
 
 archives:
   - id: default
