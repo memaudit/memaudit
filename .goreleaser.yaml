@@ -50,14 +50,21 @@ changelog:
   # API) — never show that; only append an @username when one's
   # actually available, and drop the SHA prefix.
   format: "{{ .Message }}{{ if .Logins }} by {{ .Logins | englishJoin }}{{ end }}"
+  # An exclude-based blocklist can't carve out chore(deps) from chore in
+  # one regexp (Go's RE2 has no negative lookahead), which meant a
+  # release whose only change was a dependency bump -- security fixes
+  # included -- got an empty changelog. Switched to an include-based
+  # allowlist instead: every type worth surfacing to a reader, named
+  # explicitly, with chore(deps) getting its own group so a
+  # security-only release still says what changed.
   filters:
-    exclude:
-      - '^.*?docs(\(.+\))??!?:.+$'
-      - '^.*?test(\(.+\))??!?:.+$'
-      - '^.*?chore(\(.+\))??!?:.+$'
-      - '^.*?ci(\(.+\))??!?:.+$'
-      - '^.*?build(\(.+\))??!?:.+$'
-      - '^.*?style(\(.+\))??!?:.+$'
+    include:
+      - '^.*?feat(\(.+\))??!?:.+$'
+      - '^.*?fix(\(.+\))??!?:.+$'
+      - '^.*?perf(\(.+\))??!?:.+$'
+      - '^.*?refactor(\(.+\))??!?:.+$'
+      - '^.*?revert(\(.+\))??!?:.+$'
+      - '^.*?chore\(deps\):.+$'
   groups:
     - title: Features
       regexp: '^.*?feat(\(.+\))??!?:.+$'
@@ -68,5 +75,8 @@ changelog:
     - title: "Performance improvements"
       regexp: '^.*?perf(\(.+\))??!?:.+$'
       order: 2
+    - title: Dependencies
+      regexp: '^.*?chore\(deps\):.+$'
+      order: 3
     - title: Others
       order: 999
