@@ -44,6 +44,12 @@ signs:
 changelog:
   sort: asc
   use: github
+  # goreleaser's default github format falls back to the raw commit
+  # author's name and email when no GitHub login can be resolved (e.g.
+  # the first release, with no previous tag to diff against via the
+  # API) — never show that; only append an @username when one's
+  # actually available, and drop the SHA prefix.
+  format: "{{ .Message }}{{ if .Logins }} by {{ .Logins | englishJoin }}{{ end }}"
   filters:
     exclude:
       - '^.*?docs(\(.+\))??!?:.+$'
