@@ -45,7 +45,7 @@ signs:
 
 changelog:
   sort: asc
-  use: git
+  use: github
   filters:
     exclude:
       - '^.*?docs(\(.+\))??!?:.+$'
