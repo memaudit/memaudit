@@ -130,7 +130,7 @@ func damonChecks(procRoot, sysRoot string) []Check {
 	return []Check{
 		{Name: "DAMON sysfs", OK: caps.Sysfs, Detail: damonAbsentDetail(caps.Sysfs)},
 		{Name: "DAMON paddr", OK: caps.Paddr, Detail: damonAbsentDetail(caps.Paddr)},
-		{Name: "DAMON tried_regions (>=6.2)", OK: caps.TriedRegions, Detail: damonAbsentDetail(caps.TriedRegions)},
+		{Name: "DAMON tried_regions (>=6.2)", OK: caps.TriedRegions, Detail: triedRegionsDetail(caps.TriedRegions)},
 	}
 }
 
@@ -139,6 +139,20 @@ func damonAbsentDetail(ok bool) string {
 		return ""
 	}
 	return "DAMON unavailable — cold-page estimate not computed"
+}
+
+// triedRegionsDetail gets its own wording rather than sharing
+// damonAbsentDetail: unlike Sysfs/Paddr, this check is a kernel-version
+// guess with a demonstrated false-negative mode (RHEL-family kernels
+// backport tried_regions support while keeping an older version
+// string), so a flat "unavailable" would overstate what this check
+// actually knows. The agent probes for real at startup and enables the
+// collector if that succeeds, regardless of what this line says.
+func triedRegionsDetail(ok bool) string {
+	if ok {
+		return ""
+	}
+	return "kernel version suggests no full histogram mode; this check relies on the version string alone and can miss backported support (seen on RHEL-family kernels) — the agent confirms real availability at startup"
 }
 
 func psiCheck(procRoot string) Check {

@@ -3,7 +3,10 @@
 
 package selftest
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRunAllCapsOK(t *testing.T) {
 	res := Run("../../testdata/selftest/full-caps/proc", "../../testdata/cgroup-v2-k8s/sys")
@@ -28,6 +31,31 @@ func TestRunDamonFullHistogram(t *testing.T) {
 		if c := findCheck(t, res, name); !c.OK {
 			t.Errorf("check %q: got FAIL (%s), want OK", name, c.Detail)
 		}
+	}
+}
+
+func TestRunDamonRHELBackportGetsHonestDetail(t *testing.T) {
+	// Sysfs/paddr present, but the version-string guess says no
+	// tried_regions (a known false negative on RHEL-family kernels —
+	// see pkg/damon's TestDetectRHELBackportIsKnownFalseNegative). This
+	// line must not claim DAMON is flatly "unavailable": the agent
+	// verifies for real at startup and may well enable it anyway.
+	res := Run("../../testdata/edge-cases/damon-rhel-backport/proc", "../../testdata/edge-cases/damon-rhel-backport/sys")
+
+	for _, name := range []string{"DAMON sysfs", "DAMON paddr"} {
+		if c := findCheck(t, res, name); !c.OK {
+			t.Errorf("check %q: got FAIL (%s), want OK", name, c.Detail)
+		}
+	}
+	c := findCheck(t, res, "DAMON tried_regions (>=6.2)")
+	if c.OK {
+		t.Fatal(`check "DAMON tried_regions (>=6.2)": got OK, want FAIL (fixture kernel version is 5.14)`)
+	}
+	if strings.Contains(c.Detail, "unavailable") {
+		t.Errorf("Detail = %q, still claims DAMON is unavailable — should read as an estimate, not a fact", c.Detail)
+	}
+	if !strings.Contains(c.Detail, "version string alone") {
+		t.Errorf("Detail = %q, want it to acknowledge this check relies on the version string alone", c.Detail)
 	}
 }
 

@@ -32,6 +32,26 @@ func TestDetectPre62IsStatsOnly(t *testing.T) {
 	}
 }
 
+func TestDetectRHELBackportIsKnownFalseNegative(t *testing.T) {
+	// RHEL-family kernels commonly backport upstream mm/ features
+	// (including DAMON changes) while keeping an older base version
+	// number, e.g. this real Rocky Linux 9 release string. The
+	// version-string heuristic has no way to see the backport and
+	// reports TriedRegions: false even when the kernel may genuinely
+	// support it — a known, accepted limitation (see Caps.TriedRegions'
+	// doc comment). Callers that care about the real answer must probe
+	// live (internal/agent's damonSource does, via Session.Snapshot),
+	// not trust this guess as authoritative.
+	got, err := DetectAt("../../testdata/edge-cases/damon-rhel-backport/proc", "../../testdata/edge-cases/damon-rhel-backport/sys")
+	if err != nil {
+		t.Fatalf("DetectAt: %v", err)
+	}
+	want := Caps{Sysfs: true, Paddr: true, TriedRegions: false}
+	if got != want {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
 func TestDetectGoldenFullHistogram(t *testing.T) {
 	// Real capture: Fedora box, kernel 7.1.6, CONFIG_DAMON_SYSFS on —
 	// the >=6.2 rung, full histogram (tried_regions) mode.

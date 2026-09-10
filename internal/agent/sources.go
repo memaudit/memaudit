@@ -141,8 +141,8 @@ func damonSource(cfg config.DamonConfig, procRoot, sysRoot, site, host string, n
 		slog.Warn("damon: capability detection failed, disabling collector", "err", err)
 		return source{}, false
 	}
-	if !caps.TriedRegions {
-		slog.Warn("damon: kernel doesn't support full histogram mode (needs a >=6.2 tried_regions-capable kernel), disabling collector")
+	if !caps.Sysfs {
+		slog.Warn("damon: no DAMON sysfs interface on this kernel, disabling collector")
 		return source{}, false
 	}
 
@@ -163,6 +163,19 @@ func damonSource(cfg config.DamonConfig, procRoot, sysRoot, site, host string, n
 	})
 	if err != nil {
 		slog.Warn("damon: Start failed, disabling collector", "err", err)
+		return source{}, false
+	}
+
+	// caps.TriedRegions is a best-effort guess from the kernel version
+	// string (see its doc comment) and produces false negatives on
+	// kernels that backport DAMON features while keeping an older
+	// version number (observed in practice on RHEL-family kernels).
+	// tried_regions is a read-only output Start never touches, so the
+	// only way to know whether histogram mode actually works is to
+	// probe it for real, the same way Collect will every tick.
+	if _, err := sess.Snapshot(); err != nil {
+		slog.Warn("damon: tried_regions probe failed, disabling collector", "err", err)
+		_ = sess.Stop()
 		return source{}, false
 	}
 
