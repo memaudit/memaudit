@@ -8,6 +8,7 @@ package spool
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -236,6 +237,16 @@ func (s *Spool) enforceCap() error {
 		for _, p := range segs {
 			info, err := os.Stat(p)
 			if err != nil {
+				// The concurrent shipper (push/live mode) can delete a
+				// segment between Segments() listing it and this Stat —
+				// that's not a problem, it means the segment already
+				// shipped, exactly the outcome enforceCap exists to
+				// eventually force anyway. Exclude it from the total and
+				// keep going rather than aborting the whole call.
+				if os.IsNotExist(err) {
+					slog.Debug("segment vanished during cap enforcement, already shipped", "path", p)
+					continue
+				}
 				return err
 			}
 			total += info.Size()
@@ -246,6 +257,16 @@ func (s *Spool) enforceCap() error {
 
 		oldest := segs[0]
 		if err := os.Remove(oldest); err != nil {
+			// Same race as above, at the removal step: the shipper may
+			// have already deleted oldest since the Stat loop above. It
+			// wasn't evicted by us, so skip writeWarning (which would
+			// otherwise misreport a normal shipped segment as a
+			// cap-eviction) and let the next loop iteration re-list and
+			// re-evaluate against the now-current total.
+			if os.IsNotExist(err) {
+				slog.Debug("segment vanished during cap enforcement, already shipped", "path", oldest)
+				continue
+			}
 			return err
 		}
 		if err := s.writeWarning(oldest); err != nil {

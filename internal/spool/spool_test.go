@@ -356,6 +356,57 @@ func TestEnforcesMaxBytesCap(t *testing.T) {
 	}
 }
 
+// TestEnforceCapSurvivesConcurrentSegmentDeletion exercises the race
+// enforceCap must tolerate: a concurrent shipper (push/live mode) can
+// delete a segment enforceCap already listed, at any point before or
+// during its Stat/Remove calls on that same segment. A background
+// goroutine deletes whatever segments exist as fast as it can — the
+// same effect a live shipper has — while the foreground repeatedly
+// writes small envelopes with a tiny RotateBytes/MaxBytes so every
+// write is likely to trigger both rotation and cap enforcement. Before
+// the fix this reliably surfaced "no such file or directory" from
+// Write within a few hundred iterations; after the fix Write must
+// never error, regardless of what the deleter goroutine's timing does.
+func TestEnforceCapSurvivesConcurrentSegmentDeletion(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir, Options{RotateBytes: 1, MaxBytes: 1})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			segs, err := s.Segments()
+			if err != nil {
+				continue
+			}
+			for _, p := range segs {
+				_ = os.Remove(p) // simulates the live shipper shipping-then-deleting
+			}
+		}
+	}()
+	defer func() {
+		close(stop)
+		wg.Wait()
+	}()
+
+	for i := range 500 {
+		if err := s.Write(testEnvelope("host_mem")); err != nil {
+			t.Fatalf("Write (iteration %d): %v — enforceCap must tolerate a segment vanishing under it", i, err)
+		}
+	}
+}
+
 func TestOpenApproximatesActiveStartFromExistingFileMTime(t *testing.T) {
 	dir := t.TempDir()
 
