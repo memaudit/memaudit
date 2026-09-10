@@ -6,7 +6,7 @@ require (
 	github.com/klauspost/compress v1.20.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/prometheus/client_model v0.6.3
-	github.com/prometheus/common v0.70.1
+	github.com/prometheus/common v0.71.0
 	github.com/prometheus/procfs v0.22.0
 	gopkg.in/yaml.v3 v3.0.1
 )
