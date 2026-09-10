@@ -38,6 +38,15 @@ type Caps struct {
 	Paddr bool
 	// TriedRegions reports whether the kernel is new enough (>=6.2) to
 	// expose the tried_regions readout that full histogram mode needs.
+	// Like Paddr, this is a best-effort guess, not an authoritative
+	// check: it comes from the kernel's version string alone, which
+	// produces false negatives on kernels that backport DAMON features
+	// while keeping an older version number (observed in practice on
+	// RHEL-family kernels — see selftest's advisory framing). The
+	// authoritative check is a live tried_regions read, which only
+	// Start's caller can do (Detect stays read-only); a false negative
+	// here means selftest is overly pessimistic, not that the running
+	// agent will actually be denied histogram mode.
 	TriedRegions bool
 }
 
