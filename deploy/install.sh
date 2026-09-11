@@ -28,15 +28,15 @@ site=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--version)
-		version="$2"
+		version="${2:?--version requires a value}"
 		shift 2
 		;;
 	--mode)
-		mode="$2"
+		mode="${2:?--mode requires a value}"
 		shift 2
 		;;
 	--site)
-		site="$2"
+		site="${2:?--site requires a value}"
 		shift 2
 		;;
 	*)
@@ -70,6 +70,13 @@ aarch64) arch="arm64" ;;
 	;;
 esac
 
+for cmd in curl tar sha256sum systemctl; do
+	if ! command -v "$cmd" >/dev/null 2>&1; then
+		echo "missing required command: $cmd" >&2
+		exit 1
+	fi
+done
+
 if [ -z "$version" ]; then
 	echo "resolving latest release..."
 	version="$(curl -fsSL "$GITHUB_API/repos/$REPO/releases/latest" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
@@ -98,10 +105,20 @@ install -d -m 0755 "$BIN_DIR"
 install -m 0755 "$workdir/memauditd" "$BIN_DIR/memauditd"
 echo "installed $BIN_DIR/memauditd"
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Unit files come from the same checksummed release archive as the
+# binary, not a sibling-file lookup relative to this script — install.sh
+# has no reliable "own location" when piped via `curl | bash`, which is
+# how the README documents running it. Releases before v0.1.2 only ever
+# bundled the binaries, so name that explicitly rather than surfacing a
+# bare tar error.
+if ! tar -xzf "$workdir/$archive" -C "$workdir" memauditd.service memauditd-zerotouch.service 2>/dev/null; then
+	echo "release $version predates bundled systemd unit files — install v0.1.2 or later" >&2
+	exit 1
+fi
+
 install -d -m 0755 "$UNIT_DIR"
-install -m 0644 "$script_dir/memauditd.service" "$UNIT_DIR/memauditd.service"
-install -m 0644 "$script_dir/memauditd-zerotouch.service" "$UNIT_DIR/memauditd-zerotouch.service"
+install -m 0644 "$workdir/memauditd.service" "$UNIT_DIR/memauditd.service"
+install -m 0644 "$workdir/memauditd-zerotouch.service" "$UNIT_DIR/memauditd-zerotouch.service"
 echo "installed unit files to $UNIT_DIR"
 
 install -d -m 0750 "$STATE_DIR/spool"

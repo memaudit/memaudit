@@ -29,6 +29,25 @@ archives:
     ids: [memauditd, memaudit-synth]
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     formats: [tar.gz]
+    # Explicitly listing files: replaces goreleaser's own default include
+    # list (LICENSE*/README*/CHANGELOG*) rather than extending it, so
+    # those are repeated here — otherwise the archive would silently stop
+    # carrying the license text Apache-2.0 requires on redistribution.
+    # memauditd.service/memauditd-zerotouch.service are new: install.sh
+    # extracts them alongside the binary so the systemd unit files get
+    # the same checksum/signature coverage as the binary, instead of a
+    # separate unauthenticated fetch (or, before this, a BASH_SOURCE-based
+    # lookup that assumed install.sh was running from a local checkout
+    # rather than piped via curl).
+    files:
+      - LICENSE*
+      - LICENSES/**
+      - README*
+      - CHANGELOG*
+      - src: deploy/memauditd.service
+        dst: memauditd.service
+      - src: deploy/memauditd-zerotouch.service
+        dst: memauditd-zerotouch.service
 
 checksum:
   name_template: checksums.txt
