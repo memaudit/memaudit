@@ -55,6 +55,36 @@ host actually supports (DAMON's kernel rung, whether PSI is compiled in, and
 so on) without collecting anything itself. See `deploy/` for the systemd
 units and `install.sh`.
 
+## memaudit-synth: the correctness proof
+
+`memaudit-synth` is the standalone tool this project's own claims are
+checked against: it mmaps a known amount of memory, keeps a known subset of
+it actively touched, and leaves the rest idle, then checks that
+`memauditd`'s DAMON-based cold-page histogram reports the idle portion
+correctly. If DAMON can't see synthetic cold memory accurately, nothing
+downstream is trustworthy. Run this yourself before trusting anything else
+in this repo.
+
+    go build ./cmd/memaudit-synth
+    sudo ./memaudit-synth --alloc 8GiB --hot 2GiB --duration 10m   # needs root
+
+Also ships as a prebuilt `memaudit-synth` binary in each release archive
+alongside `memauditd`, if you'd rather not build it yourself. `--duration`
+defaults to 10 minutes and has a 6-minute floor (`cold_300s` only becomes
+meaningful once a region has been idle for 300s); `--version` prints the
+build version.
+
+Needs root (same as `memauditd`'s DAMON collector) and a box that isn't also
+running `memauditd` at the same time: DAMON only has one monitoring slot,
+and `memaudit-synth` checks for and refuses to steal a slot already in use
+unless `--force` is passed. It also expects a box with enough headroom over
+`--alloc` for the OS to stay healthy, but not so much spare RAM that the
+run stops being a meaningful test. DAMON watches the whole machine's
+physical memory, not just this tool's own allocation, so a much bigger or
+busier box will show more "cold" memory than just what this tool itself
+left idle. `memaudit-synth` checks both up front and aborts with an
+explanation if the box looks unsuitable (`--force` to override).
+
 ## Contributing
 
 Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Commits need
