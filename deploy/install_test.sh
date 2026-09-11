@@ -29,7 +29,7 @@ case_work=""
 # never exercises it.
 #
 # $4 (default "yes") selects whether the fixture archive bundles the
-# systemd unit files: "no" builds an archive shaped like a pre-v0.1.2
+# systemd unit files: "no" builds an archive shaped like a pre-v0.2.0
 # release (binary only), to exercise install.sh's explicit error for
 # that case rather than a bare tar failure.
 run_case() {
