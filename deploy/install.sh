@@ -108,11 +108,11 @@ echo "installed $BIN_DIR/memauditd"
 # Unit files come from the same checksummed release archive as the
 # binary, not a sibling-file lookup relative to this script — install.sh
 # has no reliable "own location" when piped via `curl | bash`, which is
-# how the README documents running it. Releases before v0.1.2 only ever
+# how the README documents running it. Releases before v0.2.0 only ever
 # bundled the binaries, so name that explicitly rather than surfacing a
 # bare tar error.
 if ! tar -xzf "$workdir/$archive" -C "$workdir" memauditd.service memauditd-zerotouch.service 2>/dev/null; then
-	echo "release $version predates bundled systemd unit files — install v0.1.2 or later" >&2
+	echo "release $version predates bundled systemd unit files — install v0.2.0 or later" >&2
 	exit 1
 fi
 
