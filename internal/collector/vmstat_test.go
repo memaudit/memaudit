@@ -3,7 +3,11 @@
 
 package collector
 
-import "testing"
+import (
+	"bytes"
+	"os"
+	"testing"
+)
 
 func TestVmstatCollectGolden(t *testing.T) {
 	cases := []struct {
@@ -35,4 +39,33 @@ func TestVmstatCollectGolden(t *testing.T) {
 			assertGoldenJSON(t, tc.want, got)
 		})
 	}
+}
+
+// FuzzParseVmstat fuzzes the hand-rolled /proc/vmstat scanner - there's
+// no prometheus/procfs API for this file, so memaudit parses all of it
+// itself. Seeded from real fixtures, including a pre-5.8-kernel capture
+// with the older combined refault/activate counter names.
+func FuzzParseVmstat(f *testing.F) {
+	fixtures := []string{
+		"../../testdata/container-linux-6.12/proc/vmstat",
+		"../../testdata/scw-em-b111x/proc/vmstat",
+		"../../testdata/edge-cases/vmstat-old-kernel/proc/vmstat",
+	}
+	for _, path := range fixtures {
+		b, err := os.ReadFile(path) //nolint:gosec // G304: fixed test-fixture paths under testdata/, not user input
+		if err != nil {
+			f.Fatalf("read fixture %s: %v", path, err)
+		}
+		f.Add(b)
+	}
+	f.Add([]byte(""))
+	f.Add([]byte("pgscan_kswapd"))
+	f.Add([]byte("pgscan_kswapd notanumber"))
+	f.Add([]byte("pgscan_kswapd 99999999999999999999999999"))
+	f.Add([]byte("pgscan_kswapd 1 extra fields here"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_, _ = parseVmstat(bytes.NewReader(data))
+	})
 }

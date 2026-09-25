@@ -10,3 +10,13 @@ path = "testdata/**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 the memaudit authors"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+# Go's native fuzzing writes its persisted corpus to
+# <package-dir>/testdata/fuzz/<FuzzName>/, one level down from every
+# fuzz-testing package - not the top-level testdata/ the rule above
+# covers.
+path = "**/testdata/fuzz/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 the memaudit authors"
+SPDX-License-Identifier = "Apache-2.0"

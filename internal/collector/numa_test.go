@@ -3,7 +3,12 @@
 
 package collector
 
-import "testing"
+import (
+	"bytes"
+	"os"
+	"strconv"
+	"testing"
+)
 
 func TestNumaCollectGolden(t *testing.T) {
 	got, err := NewNuma("../../testdata/container-linux-6.12/sys").Collect()
@@ -11,6 +16,75 @@ func TestNumaCollectGolden(t *testing.T) {
 		t.Fatalf("Collect: %v", err)
 	}
 	assertGoldenJSON(t, "../../testdata/container-linux-6.12/expected/numa_mem.json", got)
+}
+
+// FuzzScanNodeMeminfo fuzzes the "Node N Key:  value [unit]" line
+// format used by .../nodeN/meminfo, plus the ParseUint step every
+// caller applies to the extracted value (mirroring collectNode's own
+// apply closure, without needing the model.NumaMem setter machinery).
+func FuzzScanNodeMeminfo(f *testing.F) {
+	fixtures := []string{
+		"../../testdata/container-linux-6.12/sys/devices/system/node/node0/meminfo",
+		"../../testdata/container-linux-6.12/sys/devices/system/node/node1/meminfo",
+		"../../testdata/scw-em-b111x/sys/devices/system/node/node0/meminfo",
+	}
+	for _, path := range fixtures {
+		b, err := os.ReadFile(path) //nolint:gosec // G304: fixed test-fixture paths under testdata/, not user input
+		if err != nil {
+			f.Fatalf("read fixture %s: %v", path, err)
+		}
+		f.Add(b)
+	}
+	f.Add([]byte(""))
+	f.Add([]byte("Node 0 MemTotal:"))
+	f.Add([]byte("Node 0 MemTotal:       notanumber kB"))
+	f.Add([]byte("Node notanumber MemTotal:       12345 kB"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_ = scanReader(bytes.NewReader(data), func(fields []string) error {
+			_, val, ok := nodeMeminfoKV(fields)
+			if !ok {
+				return nil
+			}
+			_, _ = strconv.ParseUint(val, 10, 64)
+			return nil
+		})
+	})
+}
+
+// FuzzScanKV fuzzes the plain "key value" line format shared by
+// .../nodeN/numastat and cgroup.go's memory.stat (both call scanKV),
+// plus the ParseUint step both callers apply to the extracted value.
+func FuzzScanKV(f *testing.F) {
+	fixtures := []string{
+		"../../testdata/container-linux-6.12/sys/devices/system/node/node0/numastat",
+		"../../testdata/scw-em-b111x/sys/devices/system/node/node0/numastat",
+		"../../testdata/cgroup-v2-k8s/sys/fs/cgroup/kubepods.slice/memory.stat",
+	}
+	for _, path := range fixtures {
+		b, err := os.ReadFile(path) //nolint:gosec // G304: fixed test-fixture paths under testdata/, not user input
+		if err != nil {
+			f.Fatalf("read fixture %s: %v", path, err)
+		}
+		f.Add(b)
+	}
+	f.Add([]byte(""))
+	f.Add([]byte("numa_hit"))
+	f.Add([]byte("numa_hit notanumber"))
+	f.Add([]byte("numa_hit 99999999999999999999999999"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_ = scanReader(bytes.NewReader(data), func(fields []string) error {
+			_, val, ok := plainKV(fields)
+			if !ok {
+				return nil
+			}
+			_, _ = strconv.ParseUint(val, 10, 64)
+			return nil
+		})
+	})
 }
 
 func TestNumaCollectGoldenRealDualSocket(t *testing.T) {

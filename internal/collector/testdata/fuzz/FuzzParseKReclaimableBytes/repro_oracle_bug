@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("KReclaimable: 0 kB\nKReclaimable: 5 kB\n")

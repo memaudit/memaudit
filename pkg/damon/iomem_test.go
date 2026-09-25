@@ -4,6 +4,7 @@
 package damon
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"reflect"
@@ -53,4 +54,34 @@ func TestParseIomemNonRootReturnsError(t *testing.T) {
 	if !errors.Is(err, ErrIomemMasked) {
 		t.Fatalf("got error %v, want errors.Is(err, ErrIomemMasked)", err)
 	}
+}
+
+// FuzzParseIomemReader fuzzes /proc/iomem parsing: top-level vs.
+// indented line detection, the "addrs : label" cut, the "start-end"
+// hex address split, and the all-zero masked-address detection.
+func FuzzParseIomemReader(f *testing.F) {
+	fixtures := []string{
+		"../../testdata/fedora-damon/proc/iomem",
+		"../../testdata/edge-cases/iomem-non-root/proc/iomem",
+	}
+	for _, path := range fixtures {
+		b, err := os.ReadFile(path) //nolint:gosec // G304: fixed test-fixture paths under testdata/, not user input
+		if err != nil {
+			f.Fatalf("read fixture %s: %v", path, err)
+		}
+		f.Add(b)
+	}
+	f.Add([]byte(""))
+	f.Add([]byte("00000000-00000000 : System RAM\n"))
+	f.Add([]byte("notahex-alsonotahex : System RAM\n"))
+	f.Add([]byte("1000-notahex : System RAM\n"))
+	f.Add([]byte("1000 : System RAM\n"))
+	f.Add([]byte("1000-2000 System RAM\n"))
+	f.Add([]byte("  1000-2000 : System RAM\n"))
+	f.Add([]byte("ffffffffffffffff-0 : System RAM\n"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_, _ = parseIomemReader(bytes.NewReader(data))
+	})
 }

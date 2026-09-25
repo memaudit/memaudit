@@ -6,6 +6,7 @@ package collector
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -94,7 +95,19 @@ func readKReclaimableBytes(path string) (uint64, error) {
 	}
 	defer func() { _ = f.Close() }()
 
-	scanner := bufio.NewScanner(f)
+	kb, err := parseKReclaimableBytes(f)
+	if err != nil {
+		return 0, fmt.Errorf("scan %s: %w", path, err)
+	}
+	return kb, nil
+}
+
+// parseKReclaimableBytes scans /proc/meminfo content for the
+// KReclaimable line. Split out from readKReclaimableBytes so it can be
+// fuzzed directly against arbitrary bytes, without a filesystem round
+// trip per input.
+func parseKReclaimableBytes(r io.Reader) (uint64, error) {
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
 		if len(fields) < 2 || fields[0] != "KReclaimable:" {
@@ -107,7 +120,7 @@ func readKReclaimableBytes(path string) (uint64, error) {
 		return kb * 1024, nil
 	}
 	if err := scanner.Err(); err != nil {
-		return 0, fmt.Errorf("scan %s: %w", path, err)
+		return 0, err
 	}
 	// KReclaimable is absent on pre-4.20 kernels; zero, not an error.
 	return 0, nil
