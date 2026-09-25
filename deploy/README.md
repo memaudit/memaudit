@@ -10,4 +10,7 @@ units, the DaemonSet manifest, and `install.sh`.
 - `install.sh` — fetches a release, verifies its checksum, installs the
   binary and both unit files, runs `memauditd selftest`, and
   enables+starts the service for the chosen mode.
+- `config.example.yaml` — a fully-commented example `config.yaml`, with
+  every field set to its real default. Copy to `/etc/memaudit/config.yaml`
+  and edit `site` at minimum. Full field reference: https://docs.memaudit.dev/config-reference/
 - `daemonset.yaml` — not implemented yet.

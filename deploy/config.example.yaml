@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2026 the memaudit authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Example memauditd config. Copy to /etc/memaudit/config.yaml and edit
+# `site` at minimum — every other field shown here is the real default
+# (see internal/config/config.go's Default()); omit any field you don't
+# need to change. Full field-by-field explanation:
+# https://docs.memaudit.dev/config-reference/
+
+# Required: a label identifying which customer/environment this host
+# belongs to. Stamped onto every record this agent produces.
+site: "example-site"
+
+# Base collection interval, in seconds. Some collectors tick slower on
+# fixed multiples of this (2x, 4x) — see https://docs.memaudit.dev/architecture/
+interval_s: 15
+
+# sampling or zerotouch - must match the systemd unit you deploy
+# (deploy/memauditd.service vs deploy/memauditd-zerotouch.service).
+mode: sampling
+
+collectors:
+  cgroup:
+    enabled: true
+    globs:
+      - "system.slice/*.service"
+      - "kubepods.slice/**"
+    max: 500
+
+  damon:
+    enabled: true
+    sample_us: 5000
+    aggr_us: 100000
+    max_regions: 1000
+
+  nvml:
+    # auto, "true", or "false". auto loads the NVIDIA library and
+    # silently disables this collector if that fails - safe to leave on
+    # a host with no GPU.
+    enabled: "auto"
+
+  vllm:
+    # Empty by default - no vLLM workload to scrape. Add endpoint URLs
+    # to enable, e.g.:
+    # endpoints:
+    #   - "http://127.0.0.1:8000"
+    endpoints: []
+    metric_map:
+      cache_usage: "vllm:gpu_cache_usage_perc"
+      prefix_hits: "vllm:gpu_prefix_cache_hits_total"
+      prefix_queries: "vllm:gpu_prefix_cache_queries_total"
+      preemptions: "vllm:num_preemptions_total"
+      running: "vllm:num_requests_running"
+      waiting: "vllm:num_requests_waiting"
+      prompt_tokens: "vllm:prompt_tokens_total"
+      gen_tokens: "vllm:generation_tokens_total"
+
+k8s:
+  # Off by default. Turn on to attach pod/namespace/label metadata to
+  # cgroups under a kubepods.slice path.
+  enrich: false
+  kubelet: "https://127.0.0.1:10250"
+  token_path: ""
+  ca_path: ""
+  # Never set this true against a real cluster's kubelet - only for
+  # local/dev clusters using self-signed certs without a distributable CA.
+  insecure_skip_verify: false
+  label_keys:
+    - "app"
+
+spool:
+  dir: "/var/lib/memaudit/spool"
+  max_bytes: 2147483648 # 2 GiB
+
+ship:
+  # push (ship to a remote url) or bundle (air-gapped, spool stays local).
+  mode: push
+  url: ""
+  token_file: ""
+
+log:
+  level: info
+
+debug:
+  # Off by default. If set, must be a loopback address (memauditd
+  # refuses to start otherwise) - only turn this on to diagnose a real
+  # leak or performance problem.
+  pprof_addr: ""
