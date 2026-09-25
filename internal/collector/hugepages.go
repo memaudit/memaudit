@@ -185,9 +185,16 @@ func readUintFile(path string) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("read %s: %w", path, err)
 	}
-	n, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+	n, err := parseUintFileContent(b)
 	if err != nil {
 		return 0, fmt.Errorf("parse %s: %w", path, err)
 	}
 	return n, nil
+}
+
+// parseUintFileContent parses a single-line sysfs counter file's raw
+// content. Split out from readUintFile so it can be fuzzed directly
+// against arbitrary bytes, without a filesystem round trip per input.
+func parseUintFileContent(b []byte) (uint64, error) {
+	return strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
 }

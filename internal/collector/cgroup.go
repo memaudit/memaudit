@@ -293,13 +293,25 @@ func readNullableUint(path string) (*uint64, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
+	n, err := parseNullableUint(b)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return n, nil
+}
+
+// parseNullableUint parses a memory.{max,min,low,high,peak}-style
+// file's raw content: empty or the literal "max" both mean "no limit
+// set" (nil), never an error. Split out from readNullableUint so it
+// can be fuzzed directly against arbitrary bytes.
+func parseNullableUint(b []byte) (*uint64, error) {
 	s := strings.TrimSpace(string(b))
 	if s == "" || s == "max" {
 		return nil, nil //nolint:nilnil // "max" means "no limit set", a valid state
 	}
 	n, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
+		return nil, err
 	}
 	return &n, nil
 }
@@ -316,7 +328,17 @@ func readCgroupPSI(path string) (*model.PSI, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
+	psi, err := parseCgroupPSI(b)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return psi, nil
+}
 
+// parseCgroupPSI parses memory.pressure's raw content into a
+// model.PSI. Split out from readCgroupPSI so it can be fuzzed directly
+// against arbitrary bytes, without a filesystem round trip per input.
+func parseCgroupPSI(b []byte) (*model.PSI, error) {
 	var psi model.PSI
 	for line := range strings.SplitSeq(strings.TrimSpace(string(b)), "\n") {
 		fields := strings.Fields(line)
@@ -325,7 +347,7 @@ func readCgroupPSI(path string) (*model.PSI, error) {
 		}
 		avg10, avg60, avg300, total, err := parsePSIKV(fields[1:])
 		if err != nil {
-			return nil, fmt.Errorf("parse %s: %w", path, err)
+			return nil, err
 		}
 		switch fields[0] {
 		case "some":

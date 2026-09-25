@@ -6,6 +6,7 @@ package collector
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -99,24 +100,49 @@ func (c *Numa) collectNode(dir string, node int) (model.NumaMem, error) {
 	return rec, nil
 }
 
+// nodeMeminfoKV extracts the key/value pair from one "Node N Key:
+// value [unit]" line used by .../nodeN/meminfo, as already split into
+// fields. Named (not an inline closure) so it can be exercised directly
+// by a fuzz test alongside scanReader.
+func nodeMeminfoKV(fields []string) (key, val string, ok bool) {
+	if len(fields) < 4 {
+		return "", "", false
+	}
+	return strings.TrimSuffix(fields[2], ":"), fields[3], true
+}
+
+// plainKV extracts the key/value pair from one "key value" line, as
+// used by .../nodeN/numastat and (via this same function) cgroup.go's
+// memory.stat. Named (not an inline closure) so it can be exercised
+// directly by a fuzz test alongside scanReader.
+func plainKV(fields []string) (key, val string, ok bool) {
+	if len(fields) < 2 {
+		return "", "", false
+	}
+	return fields[0], fields[1], true
+}
+
 // scanNodeMeminfo scans the "Node N Key:  value [unit]" layout used by
 // .../nodeN/meminfo.
 func scanNodeMeminfo(path string, fn func(key, val string) error) error {
 	return scanFile(path, func(fields []string) error {
-		if len(fields) < 4 {
+		key, val, ok := nodeMeminfoKV(fields)
+		if !ok {
 			return nil
 		}
-		return fn(strings.TrimSuffix(fields[2], ":"), fields[3])
+		return fn(key, val)
 	})
 }
 
-// scanKV scans the plain "key value" layout used by .../nodeN/numastat.
+// scanKV scans the plain "key value" layout used by .../nodeN/numastat
+// and cgroup.go's memory.stat.
 func scanKV(path string, fn func(key, val string) error) error {
 	return scanFile(path, func(fields []string) error {
-		if len(fields) < 2 {
+		key, val, ok := plainKV(fields)
+		if !ok {
 			return nil
 		}
-		return fn(fields[0], fields[1])
+		return fn(key, val)
 	})
 }
 
@@ -127,14 +153,21 @@ func scanFile(path string, fn func(fields []string) error) error {
 	}
 	defer func() { _ = f.Close() }()
 
-	scanner := bufio.NewScanner(f)
+	if err := scanReader(f, fn); err != nil {
+		return fmt.Errorf("scan %s: %w", path, err)
+	}
+	return nil
+}
+
+// scanReader is scanFile's line-scanning core, split out so it can be
+// fuzzed directly against arbitrary bytes without a filesystem round
+// trip per input.
+func scanReader(r io.Reader, fn func(fields []string) error) error {
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		if err := fn(strings.Fields(scanner.Text())); err != nil {
 			return err
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("scan %s: %w", path, err)
-	}
-	return nil
+	return scanner.Err()
 }

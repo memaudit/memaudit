@@ -158,3 +158,44 @@ func TestParseComputeAppsCSVRealCaptureCorrelatesByDevice(t *testing.T) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 }
+
+// FuzzParseGPUQueryCSV fuzzes nvidia-smi's --query-gpu CSV output
+// parser, including the per-field [N/A]-tolerant numeric parsing.
+func FuzzParseGPUQueryCSV(f *testing.F) {
+	real, err := os.ReadFile("../../testdata/runpod-a40-x2/query-gpu.csv")
+	if err != nil {
+		f.Fatalf("read fixture: %v", err)
+	}
+	f.Add(real)
+	f.Add([]byte(""))
+	f.Add([]byte("0, GPU-aaaaaaaa-0000-0000-0000-000000000000, NVIDIA H100 80GB HBM3, 81920, 1024, 80896, 5, 2, Disabled\n"))
+	f.Add([]byte("0, GPU-x, name, [N/A], [N/A], [N/A], [N/A], [N/A], Disabled\n"))
+	f.Add([]byte("too, few, fields\n"))
+	f.Add([]byte("way, too, many, fields, for, this, csv, line, to, parse, correctly\n"))
+	f.Add([]byte(",,,,,,,,\n"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_, _ = parseGPUQueryCSV(data)
+	})
+}
+
+// FuzzParseComputeAppsCSV fuzzes nvidia-smi's --query-compute-apps CSV
+// output parser.
+func FuzzParseComputeAppsCSV(f *testing.F) {
+	real, err := os.ReadFile("../../testdata/runpod-a40-x2/query-compute-apps.csv")
+	if err != nil {
+		f.Fatalf("read fixture: %v", err)
+	}
+	f.Add(real)
+	f.Add([]byte(""))
+	f.Add([]byte("GPU-aaaaaaaa-0000-0000-0000-000000000000, 1234, 2048\n"))
+	f.Add([]byte("GPU-x, [N/A], [N/A]\n"))
+	f.Add([]byte("too, few\n"))
+	f.Add([]byte("way, too, many, fields\n"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_, _ = parseComputeAppsCSV(data)
+	})
+}

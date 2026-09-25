@@ -6,6 +6,7 @@ package collector
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -54,8 +55,19 @@ func (c *Vmstat) Collect() (*model.Vmstat, error) {
 	}
 	defer func() { _ = f.Close() }()
 
+	out, err := parseVmstat(f)
+	if err != nil {
+		return nil, fmt.Errorf("scan %s: %w", path, err)
+	}
+	return out, nil
+}
+
+// parseVmstat scans /proc/vmstat content into a model.Vmstat. Split out
+// from Collect so it can be fuzzed directly against arbitrary bytes,
+// without a filesystem round trip per input.
+func parseVmstat(r io.Reader) (*model.Vmstat, error) {
 	out := &model.Vmstat{}
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
 		if len(fields) != 2 {
@@ -72,7 +84,7 @@ func (c *Vmstat) Collect() (*model.Vmstat, error) {
 		setter(out, n)
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan %s: %w", path, err)
+		return nil, err
 	}
 	return out, nil
 }

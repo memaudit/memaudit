@@ -5,6 +5,7 @@ package collector
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -128,4 +129,60 @@ func TestCgroupCollectK8sEnrichment(t *testing.T) {
 			}
 		}
 	}
+}
+
+// FuzzParseNullableUint fuzzes the memory.{max,min,low,high,peak}-style
+// counter-file parser, where the literal "max" means "no limit set"
+// rather than a numeric value.
+func FuzzParseNullableUint(f *testing.F) {
+	fixtures := []string{
+		"../../testdata/cgroup-v2-k8s/sys/fs/cgroup/kubepods.slice/memory.max",
+		"../../testdata/cgroup-v2-k8s/sys/fs/cgroup/system.slice/ssh.service/memory.max",
+	}
+	for _, path := range fixtures {
+		b, err := os.ReadFile(path) //nolint:gosec // G304: fixed test-fixture paths under testdata/, not user input
+		if err != nil {
+			f.Fatalf("read fixture %s: %v", path, err)
+		}
+		f.Add(b)
+	}
+	f.Add([]byte(""))
+	f.Add([]byte("max"))
+	f.Add([]byte("Max"))
+	f.Add([]byte("notanumber"))
+	f.Add([]byte("-1"))
+	f.Add([]byte("99999999999999999999999999"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_, _ = parseNullableUint(data)
+	})
+}
+
+// FuzzParseCgroupPSI fuzzes memory.pressure's "some avg10=.. avg60=..
+// avg300=.. total=.." / "full ..." layout end to end - line splitting,
+// field splitting, and the avg10/avg60/avg300/total key=value parsing
+// parsePSIKV does, all exercised together against arbitrary bytes.
+func FuzzParseCgroupPSI(f *testing.F) {
+	fixtures := []string{
+		"../../testdata/cgroup-v2-k8s/sys/fs/cgroup/kubepods.slice/memory.pressure",
+		"../../testdata/cgroup-v2-k8s/sys/fs/cgroup/system.slice/cron.service/memory.pressure",
+	}
+	for _, path := range fixtures {
+		b, err := os.ReadFile(path) //nolint:gosec // G304: fixed test-fixture paths under testdata/, not user input
+		if err != nil {
+			f.Fatalf("read fixture %s: %v", path, err)
+		}
+		f.Add(b)
+	}
+	f.Add([]byte(""))
+	f.Add([]byte("some avg10=notanumber avg60=0.00 avg300=0.00 total=0"))
+	f.Add([]byte("some avg10= avg60=0.00 avg300=0.00 total=0"))
+	f.Add([]byte("some avg10=0.00"))
+	f.Add([]byte("unknown avg10=0.00 avg60=0.00 avg300=0.00 total=0"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Must never panic, regardless of input shape.
+		_, _ = parseCgroupPSI(data)
+	})
 }

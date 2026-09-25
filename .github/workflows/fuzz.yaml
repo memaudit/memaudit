@@ -1,0 +1,33 @@
+name: fuzz
+
+# Fuzzing is slow and nondeterministic, so it runs on its own nightly
+# schedule rather than as a push/pull_request check in ci.yaml - a
+# random new counterexample showing up on an unrelated PR would be a
+# false blocker. Kept as a separate workflow file (rather than a
+# schedule-gated job inside ci.yaml) so this schedule can never
+# accidentally re-trigger the rest of that suite too.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Run fuzz targets
+        run: |
+          set -euo pipefail
+          for pkg in ./internal/collector/... ./pkg/damon/...; do
+            for fn in $(go test "$pkg" -list '^Fuzz' | grep '^Fuzz'); do
+              echo "::group::$fn ($pkg)"
+              go test "$pkg" -run "^$fn$" -fuzz "^$fn$" -fuzztime=45s
+              echo "::endgroup::"
+            done
+          done
