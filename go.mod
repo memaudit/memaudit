@@ -3,7 +3,7 @@ module github.com/memaudit/memaudit
 go 1.27.4
 
 require (
-	github.com/klauspost/compress v1.20.3
+	github.com/klauspost/compress v1.20.4
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/prometheus/client_model v0.6.3
 	github.com/prometheus/common v0.73.1
