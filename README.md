@@ -37,7 +37,7 @@ the read-only-sysfs unit). See `deploy/install.sh` and `deploy/README.md`.
 
 ## Building
 
-Needs Go 1.26+ and Linux. The agent reads procfs/sysfs/cgroupfs directly, so
+Needs Go 1.27+ and Linux. The agent reads procfs/sysfs/cgroupfs directly, so
 it won't run (or build much of anything useful) on other platforms.
 
     git clone https://github.com/memaudit/memaudit.git
